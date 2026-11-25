@@ -1,0 +1,29 @@
+# octomap_server: 3D voxel + 2D occupancy(projected_map)
+# 입력: /fastlio2/body_cloud (base_footprint 기준, 범위 필터 적용된 스캔)
+#   TF map -(PGO)-> lio_world -(FAST-LIO)-> base_footprint 로 map에 넣음
+#   -> 넣는 순간의 PGO 보정만 반영. 루프가 닫혀도 이미 쌓인 voxel은 다시 정렬되지 않음
+#   raycast 원점 = cloud 프레임 원점(base_footprint, 바닥). 라이다보다 0.37 m 아래라 free 공간이 약간 다름
+octomap_server:
+  ros__parameters:
+    frame_id: map
+    base_frame_id: base_footprint
+    resolution: 0.1
+    sensor_model:
+      max_range: 15.0      # 이 거리 넘는 점은 끝까지 raycast 하지 않음 (속도)
+      hit: 0.7
+      miss: 0.4
+      min: 0.12
+      max: 0.97
+    # 넣을 점 범위 (map 기준 z). 천장 제외하려면 point_cloud_max_z 낮추기
+    point_cloud_min_z: -1.0
+    point_cloud_max_z: 2.5
+    # 2D 투영(projected_map): 이 높이 범위(map z) 안의 occupied voxel만 장애물
+    #   map z=0 = 시작 위치 바닥(base_footprint). 바닥 노이즈 피하려고 0.15부터, 로봇 키 + 여유까지
+    occupancy_min_z: 0.15   # luco_1120_0133(핸드헬드)은 바닥이 z 0.1 근처라 0.1이면 바닥 링이 장애물로 찍힘
+    occupancy_max_z: 0.8
+    filter_ground_plane: false
+    filter_speckles: true
+    publish_free_space: false
+    incremental_2D_projection: false   # true면 jazzy octomap_server에서 projected_map이 전부 unknown으로 나옴
+    compress_map: true
+    latch: false

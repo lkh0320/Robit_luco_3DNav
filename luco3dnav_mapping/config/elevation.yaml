@@ -1,0 +1,16 @@
+# 2.5D elevation map (grid_map_msgs/GridMap, layer: elevation / min / count)
+elevation_mapper:
+  ros__parameters:
+    cloud_topic: /fastlio2/body_cloud
+    map_frame: map
+    robot_frame: base_footprint
+    resolution: 0.1
+    length_x: 40.0          # map 원점 중심 고정 크기 (m)
+    length_y: 40.0
+    max_range: 15.0         # 로봇에서 수평 거리
+    # 로봇 바닥(base_footprint z) 기준 이 높이보다 높은 점은 버림 (천장/문틀 제외)
+    max_height_above_robot: 1.2
+    min_height_above_robot: -1.5
+    min_points: 2           # 셀에 점이 이만큼 쌓여야 표시
+    publish_rate: 2.0       # Hz
+    tf_wait: 1.0             # TF(map<-cloud)를 기다리는 최대 시간 (s)

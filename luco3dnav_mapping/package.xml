@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>luco3dnav_mapping</name>
+  <version>0.1.0</version>
+  <description>Luco3DNav map layers from FAST-LIO2 + PGO: 3D voxel (octomap), 2D occupancy (octomap projection), 2.5D elevation (grid_map)</description>
+  <maintainer email="lkh060320@gmail.com">lkh-ubuntu</maintainer>
+  <license>MIT</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>sensor_msgs_py</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>grid_map_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>octomap_server</exec_depend>
+  <exec_depend>octomap_rviz_plugins</exec_depend>
+  <exec_depend>grid_map_rviz_plugin</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>luco3dnav_bringup</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

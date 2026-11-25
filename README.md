@@ -7,6 +7,7 @@ Luco 로봇용 FAST-LIO2 기반 3D 맵핑/내비게이션 패키지 모음 (ROS 
 | `third_party/FASTLIO2_ROS2` | [beomsuchoi/FASTLIO2_ROS2](https://github.com/beomsuchoi/FASTLIO2_ROS2) 복사본. fastlio2 CMake에 `Sophus::Sophus` 한 줄 추가, `hba`는 빌드 제외 |
 | `luco3dnav_sensors` | EBIMU 시리얼 → `/imu/data`(sensor_msgs/Imu), Velodyne VLP-16 → `/velodyne_points` |
 | `luco3dnav_bringup` | 우리 `lio.yaml`/`pgo.yaml`, `mapping.launch.py` |
+| `luco3dnav_mapping` | 맵 레이어: 3D voxel / 2D occupancy (octomap), 2.5D elevation (grid_map). `layers.launch.py` |
 | `luco3dnav_navigation` | (작업 예정) localizer, Nav2 설정 |
 
 ## 설치
