@@ -1,8 +1,8 @@
 """개발 PC에서 로봇 PC의 실시간 SLAM을 RViz로만 보기 (계산은 로봇 PC에서).
 
   # 두 PC 모두 luco 터미널에서 먼저: source .../luco3dnav_bringup/scripts/luco_net.sh
-  # 로봇 PC:  ros2 launch luco_bringup luco.launch.py odom_tf:=false
-  #           ros2 launch luco3dnav_bringup mapping.launch.py use_description:=false use_static_tf:=false use_rviz:=false
+  # 로봇 PC:  ros2 launch luco_bringup luco.launch.py
+  #           ros2 launch luco3dnav_bringup mapping.launch.py wheel_odom:=true use_description:=false use_static_tf:=false use_rviz:=false
   # 개발 PC:  ros2 launch luco3dnav_bringup view.launch.py
 """
 import os

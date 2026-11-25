@@ -1,7 +1,7 @@
 cloud_topic: /fastlio2/body_cloud
 odom_topic: /fastlio2/lio_odom
 map_frame: map
-local_frame: odom
+local_frame: lio_world   # lio.yaml world_frame 과 같게. PGO가 map -> lio_world 보정을 발행
 
 key_pose_delta_deg: 10
 key_pose_delta_trans: 0.5

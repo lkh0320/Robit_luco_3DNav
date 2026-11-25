@@ -1,9 +1,13 @@
 imu_topic: /imu/data
 lidar_topic: /velodyne_points
-# luco2_description 루트(base_footprint, 바닥면) 기준으로 odom -> base_footprint 를 냄
-#   base_footprint -> base_link 는 URDF 고정 조인트(z +0.0613) -> TF 충돌 없음
+# 로봇 기준 프레임 = luco2_description 루트(base_footprint, 바닥면)
+#   base_footprint -> base_link 는 URDF 고정 조인트(z +0.0613)
 body_frame: base_footprint
-world_frame: odom
+# TF 구조:  map --(PGO 루프 보정)--> lio_world --(FAST-LIO)--> [odom --(휠 오도메트리)-->] base_footprint
+#   휠 odom 없음(bag/핸드헬드): FAST-LIO가 lio_world -> base_footprint 직접 발행 (odom_frame: "")
+#   휠 odom 있음(luco_bringup): FAST-LIO가 lio_world -> odom 발행 (mapping.launch.py wheel_odom:=true)
+world_frame: lio_world
+odom_frame: ""
 print_time_cost: false
 
 # 튜닝(2026-11-20, bags/luco_1120_0133 실내 핸드헬드, tune/ 참고): 원본 대비 벽 두께 40.4->27.7mm, 정지 drift 2.2->0.35cm

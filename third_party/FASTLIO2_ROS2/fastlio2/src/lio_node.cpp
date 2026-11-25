@@ -15,6 +15,8 @@
 
 #include <pcl_conversions/pcl_conversions.h>
 #include "tf2_ros/transform_broadcaster.h"
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_listener.h"
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <nav_msgs/msg/odometry.hpp>
@@ -34,6 +36,10 @@ struct NodeConfig
     // 설정이 없으면 단위변환 -> body_frame == IMU (원본 동작)
     M3D r_bi = M3D::Identity();
     V3D t_bi = V3D::Zero();
+    // 휠 오도메트리 연동: 비어 있으면 world_frame -> body_frame 을 직접 발행(원본 동작).
+    // 지정하면(예: odom) 휠 오도메트리의 odom_frame -> body_frame TF를 받아
+    // world_frame -> odom_frame 을 발행 (map->odom 보정 방식, 휠 odom TF와 충돌 없음)
+    std::string odom_frame = "";
 };
 struct StateData
 {
@@ -63,6 +69,14 @@ public:
         m_path_pub = this->create_publisher<nav_msgs::msg::Path>("lio_path", 10000);
         m_odom_pub = this->create_publisher<nav_msgs::msg::Odometry>("lio_odom", 10000);
         m_tf_broadcaster = std::make_shared<tf2_ros::TransformBroadcaster>(*this);
+        if (!m_node_config.odom_frame.empty())
+        {
+            m_tf_buffer = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+            m_tf_listener = std::make_shared<tf2_ros::TransformListener>(*m_tf_buffer);
+            RCLCPP_INFO(this->get_logger(), "wheel odom mode: publish %s -> %s (uses %s -> %s)",
+                        m_node_config.world_frame.c_str(), m_node_config.odom_frame.c_str(),
+                        m_node_config.odom_frame.c_str(), m_node_config.body_frame.c_str());
+        }
 
         m_state_data.path.poses.clear();
         m_state_data.path.header.frame_id = m_node_config.world_frame;
@@ -75,6 +89,8 @@ public:
     void loadParameters()
     {
         this->declare_parameter("config_path", "");
+        // launch에서 덮어쓰기용 (yaml의 odom_frame보다 우선)
+        this->declare_parameter("odom_frame", std::string("__yaml__"));
         std::string config_path;
         this->get_parameter<std::string>("config_path", config_path);
 
@@ -92,6 +108,11 @@ public:
         m_node_config.body_frame = config["body_frame"].as<std::string>();
         m_node_config.world_frame = config["world_frame"].as<std::string>();
         m_node_config.print_time_cost = config["print_time_cost"].as<bool>();
+        if (config["odom_frame"])
+            m_node_config.odom_frame = config["odom_frame"].as<std::string>();
+        std::string odom_override = this->get_parameter("odom_frame").as_string();
+        if (odom_override != "__yaml__")
+            m_node_config.odom_frame = odom_override;
         if (config["t_bi"] && config["r_bi"])
         {
             std::vector<double> t_bi_vec = config["t_bi"].as<std::vector<double>>();
@@ -286,6 +307,55 @@ public:
         path_pub->publish(m_state_data.path);
     }
 
+    // world_frame -> odom_frame = T_world_body * (T_odom_body)^-1
+    //   T_world_body: LIO 추정, T_odom_body: 휠 오도메트리 TF (같은 시각으로 조회)
+    void broadCastWorldToOdom(const double &time)
+    {
+        geometry_msgs::msg::TransformStamped ob;
+        const rclcpp::Time stamp = Utils::getTime(time);
+        try
+        {
+            ob = m_tf_buffer->lookupTransform(m_node_config.odom_frame, m_node_config.body_frame, stamp);
+        }
+        catch (const tf2::TransformException &)
+        {
+            // 정확한 시각이 버퍼에 없으면 가장 최근 값 사용
+            try
+            {
+                ob = m_tf_buffer->lookupTransform(m_node_config.odom_frame, m_node_config.body_frame, tf2::TimePointZero);
+            }
+            catch (const tf2::TransformException &e)
+            {
+                RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
+                                     "no %s -> %s TF (wheel odom): %s", m_node_config.odom_frame.c_str(),
+                                     m_node_config.body_frame.c_str(), e.what());
+                return;
+            }
+        }
+        M3D r_wb;
+        V3D t_wb;
+        bodyPose(r_wb, t_wb);
+        Eigen::Quaterniond q_ob(ob.transform.rotation.w, ob.transform.rotation.x, ob.transform.rotation.y, ob.transform.rotation.z);
+        M3D r_ob = q_ob.normalized().toRotationMatrix();
+        V3D t_ob(ob.transform.translation.x, ob.transform.translation.y, ob.transform.translation.z);
+        M3D r_wo = r_wb * r_ob.transpose();
+        V3D t_wo = t_wb - r_wo * t_ob;
+
+        geometry_msgs::msg::TransformStamped ts;
+        ts.header.frame_id = m_node_config.world_frame;
+        ts.child_frame_id = m_node_config.odom_frame;
+        ts.header.stamp = stamp;
+        Eigen::Quaterniond q(r_wo);
+        ts.transform.translation.x = t_wo.x();
+        ts.transform.translation.y = t_wo.y();
+        ts.transform.translation.z = t_wo.z();
+        ts.transform.rotation.x = q.x();
+        ts.transform.rotation.y = q.y();
+        ts.transform.rotation.z = q.z();
+        ts.transform.rotation.w = q.w();
+        m_tf_broadcaster->sendTransform(ts);
+    }
+
     void broadCastTF(std::shared_ptr<tf2_ros::TransformBroadcaster> broad_caster, std::string frame_id, std::string child_frame, const double &time)
     {
         M3D r_ob;
@@ -323,7 +393,10 @@ public:
         if (m_builder->status() != BuilderStatus::MAPPING)
             return;
 
-        broadCastTF(m_tf_broadcaster, m_node_config.world_frame, m_node_config.body_frame, m_package.cloud_end_time);
+        if (m_node_config.odom_frame.empty())
+            broadCastTF(m_tf_broadcaster, m_node_config.world_frame, m_node_config.body_frame, m_package.cloud_end_time);
+        else
+            broadCastWorldToOdom(m_package.cloud_end_time);
 
         publishOdometry(m_odom_pub, m_node_config.world_frame, m_node_config.body_frame, m_package.cloud_end_time);
 
@@ -359,6 +432,8 @@ private:
     std::shared_ptr<IESKF> m_kf;
     std::shared_ptr<MapBuilder> m_builder;
     std::shared_ptr<tf2_ros::TransformBroadcaster> m_tf_broadcaster;
+    std::shared_ptr<tf2_ros::Buffer> m_tf_buffer;
+    std::shared_ptr<tf2_ros::TransformListener> m_tf_listener;
 };
 
 int main(int argc, char **argv)

@@ -3,6 +3,7 @@
   ros2 launch luco3dnav_bringup mapping.launch.py                          # 로봇 모델(luco2_description) 포함
   ros2 launch luco3dnav_bringup mapping.launch.py use_description:=false   # 모델 없이 정적 TF만
 
+  로봇(luco_bringup 실행 중): mapping.launch.py wheel_odom:=true use_description:=false use_static_tf:=false
   bag 재생: use_sensors:=false 면 use_sim_time이 자동으로 true -> bag은 반드시 --clock 으로 재생
   ros2 launch luco3dnav_bringup mapping.launch.py use_sensors:=false
   ros2 bag play <bag> --clock --topics /imu/data /velodyne_points
@@ -30,6 +31,7 @@ def generate_launch_description():
     use_sensors = LaunchConfiguration('use_sensors')
     use_static_tf = LaunchConfiguration('use_static_tf')
     use_description = LaunchConfiguration('use_description')
+    wheel_odom = LaunchConfiguration('wheel_odom')
     use_rviz = LaunchConfiguration('use_rviz')
     imu_port = LaunchConfiguration('imu_port')
     # bag 데이터 시각과 노드 시각을 맞추기 위해 /clock 사용 (bool 파라미터로 전달)
@@ -75,6 +77,9 @@ def generate_launch_description():
         DeclareLaunchArgument('use_sim_time',
                               default_value=PythonExpression(["'false' if '", use_sensors, "' == 'true' else 'true'"]),
                               description='bag 재생 시 true (기본: use_sensors:=false면 true)'),
+        DeclareLaunchArgument('wheel_odom', default_value='false',
+                              description='true: luco_bringup 휠 오도메트리(odom->base_footprint)와 연동, '
+                                          'FAST-LIO는 lio_world->odom 발행'),
         DeclareLaunchArgument('use_description', default_value='true',
                               description='luco2_description 로봇 모델 + TF 사용'),
         DeclareLaunchArgument('use_static_tf', default_value='true',
@@ -91,7 +96,8 @@ def generate_launch_description():
         *description,
 
         Node(package='fastlio2', executable='lio_node', name='lio_node', namespace='fastlio2',
-             parameters=[{'config_path': lio_cfg}, sim_time], output='screen'),
+             parameters=[{'config_path': lio_cfg, 'odom_frame': PythonExpression(
+                 ["'odom' if '", wheel_odom, "' == 'true' else '__yaml__'"])}, sim_time], output='screen'),
         Node(package='pgo', executable='pgo_node', name='pgo_node', namespace='pgo',
              parameters=[{'config_path': pgo_cfg}, sim_time], output='screen'),
         Node(package='rviz2', executable='rviz2', name='rviz2', arguments=['-d', rviz_cfg],

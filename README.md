@@ -50,8 +50,8 @@ source src/luco3dnav/luco3dnav_bringup/scripts/luco_net.sh   # 도메인 46, Cyc
 
 ```bash
 # 로봇 PC
-ros2 launch luco_bringup luco.launch.py odom_tf:=false
-ros2 launch luco3dnav_bringup mapping.launch.py use_description:=false use_static_tf:=false use_rviz:=false
+ros2 launch luco_bringup luco.launch.py
+ros2 launch luco3dnav_bringup mapping.launch.py wheel_odom:=true use_description:=false use_static_tf:=false use_rviz:=false
 # 개발 PC
 ros2 launch luco3dnav_bringup view.launch.py
 ```
@@ -70,6 +70,9 @@ src/luco3dnav/luco3dnav_bringup/scripts/map_release.sh download luco_1125_1954  
 지도 위치: 개발 PC는 워크스페이스 `maps/pcd/`, 로봇 PC는 레포 안 `maps/pcd/`(git 제외). bag도 로봇 PC에서는 레포 안 `bags/`에 녹화.
 
 ## 주의
+
+- **TF 구조**: `map -(PGO)-> lio_world -(FAST-LIO)-> odom -(휠 오도메트리)-> base_footprint`. luco_bringup과 같이 쓸 때는 `wheel_odom:=true`로 FAST-LIO가 `lio_world -> odom`을 발행해서 휠 odom TF와 겹치지 않음. 휠 odom이 없으면(bag/핸드헬드) `lio_world -> base_footprint` 직접 발행.
+- **시간 동기화**: 로봇 PC와 운영 PC 시계가 다르면 원격 RViz에서 TF 에러. `scripts/setup_chrony.sh` (로봇 PC `robot` 먼저, 운영 PC `pc`), sudo 필요.
 
 - `lio.yaml`의 `r_bi`/`t_bi`(base_link→IMU), `r_il`/`t_il`(IMU→라이다)은 luco2 실측값. IMU는 로봇 대비 z축 -90도 장착. 바꿀 때는 description 레포(`luco2_description`) URDF와 `mapping.launch.py` 정적 TF도 같이 맞출 것.
 - 이 FAST-LIO2 포크는 점별 시간 정보를 쓰지 않아 움직임 왜곡 보정이 없음.
