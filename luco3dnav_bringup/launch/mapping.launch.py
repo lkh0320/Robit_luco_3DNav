@@ -86,6 +86,8 @@ def generate_launch_description():
         DeclareLaunchArgument('use_static_tf', default_value='true',
                               description='use_description:=false일 때 정적 TF 발행'),
         DeclareLaunchArgument('use_rviz', default_value='true'),
+        DeclareLaunchArgument('pgo_cloud', default_value='/fastlio2/body_cloud',
+                              description='PGO 키프레임 점군 입력 (layers.launch.py 가 동적 필터 결과로 바꿈)'),
         DeclareLaunchArgument('imu_port', default_value='/dev/ttyUSB0'),
 
         IncludeLaunchDescription(
@@ -100,7 +102,8 @@ def generate_launch_description():
              parameters=[{'config_path': lio_cfg, 'odom_frame': PythonExpression(
                  ["'odom' if '", wheel_odom, "' == 'true' else '__yaml__'"])}, sim_time], output='screen'),
         Node(package='pgo', executable='pgo_node', name='pgo_node', namespace='pgo',
-             parameters=[{'config_path': pgo_cfg}, sim_time], output='screen'),
+             parameters=[{'config_path': pgo_cfg}, sim_time], output='screen',
+             remappings=[('/fastlio2/body_cloud', LaunchConfiguration('pgo_cloud'))]),
         Node(package='rviz2', executable='rviz2', name='rviz2', arguments=['-d', rviz_cfg],
              parameters=[sim_time],
              condition=IfCondition(use_rviz)),

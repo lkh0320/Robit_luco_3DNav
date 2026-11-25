@@ -27,6 +27,7 @@ setup(
             'save_maps = luco3dnav_mapping.save_maps:main',
             'remove_dynamic = luco3dnav_mapping.remove_dynamic:main',
             'rebuild_layers = luco3dnav_mapping.rebuild_layers:main',
+            'dynamic_filter = luco3dnav_mapping.dynamic_filter:main',
         ],
     },
 )

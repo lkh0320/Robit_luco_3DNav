@@ -17,6 +17,7 @@
   <exec_depend>interface</exec_depend>
   <exec_depend>std_srvs</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>message_filters</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>octomap_server</exec_depend>

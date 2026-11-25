@@ -7,6 +7,7 @@
   # 하나만 켜기
   ros2 launch luco3dnav_mapping layers.launch.py use_sensors:=false elevation:=false   # octomap만 (voxel + 2D)
   ros2 launch luco3dnav_mapping layers.launch.py use_sensors:=false octomap:=false     # elevation만
+  ros2 launch luco3dnav_mapping layers.launch.py dynamic_filter:=false              # 실시간 동적 필터 끄기 (예전 동작)
   ros2 launch luco3dnav_mapping layers.launch.py elevation_source:=cloud              # elevation 예전 방식 (가벼움, 사람 자국 남음)
 
   # SLAM은 따로 띄워 둔 상태에서 레이어만
@@ -48,6 +49,9 @@ def generate_launch_description():
     use_sensors = LaunchConfiguration('use_sensors')
     use_sim_time = LaunchConfiguration('use_sim_time')
     sim_time = {'use_sim_time': ParameterValue(use_sim_time, value_type=bool)}
+    # 레이어/PGO 입력 점군: 동적 필터를 켜면 사람 등 뺀 것
+    cloud = PythonExpression(["'/fastlio2/body_cloud_static' if '", LaunchConfiguration('dynamic_filter'),
+                              "' == 'true' else '/fastlio2/body_cloud'"])
 
     return LaunchDescription([
         DeclareLaunchArgument('slam', default_value='true',
@@ -62,6 +66,9 @@ def generate_launch_description():
         DeclareLaunchArgument('imu_port', default_value='/dev/ttyUSB0'),
         DeclareLaunchArgument('octomap', default_value='true', description='3D voxel + 2D occupancy'),
         DeclareLaunchArgument('elevation', default_value='true', description='2.5D elevation'),
+        DeclareLaunchArgument('dynamic_filter', default_value='true',
+                              description='true: 실시간 동적 물체 필터(사람 등)를 거친 점군을 octomap/elevation/PGO에 넣음. '
+                                          'false: 예전처럼 body_cloud 그대로'),
         DeclareLaunchArgument('elevation_source', default_value='octomap',
                               description='octomap: elevation 전용 octomap으로 계산(지나간 사람 자국 실시간 제거, CPU 조금 더), '
                                           'cloud: body_cloud 누적(예전 방식, 자국 남음)'),
@@ -78,21 +85,29 @@ def generate_launch_description():
                 'use_static_tf': LaunchConfiguration('use_static_tf'),
                 'imu_port': LaunchConfiguration('imu_port'),
                 'use_rviz': 'false',
+                'pgo_cloud': cloud,
             }.items())]),
+
+        # 실시간 동적 물체 필터: body_cloud -> body_cloud_static (사람 등 빼고 octomap / elevation / PGO 에 넣음)
+        Node(package='luco3dnav_mapping', executable='dynamic_filter', name='dynamic_filter',
+             parameters=[sim_time], remappings=[('~/static', '/fastlio2/body_cloud_static'),
+                                                ('~/dynamic', '/dynamic_filter/dynamic')],
+             output='screen', condition=IfCondition(LaunchConfiguration('dynamic_filter'))),
 
         Node(package='octomap_server', executable='octomap_server_node', name='octomap_server',
              parameters=[octomap_cfg, sim_time],
-             remappings=[('cloud_in', '/fastlio2/body_cloud')],
+             remappings=[('cloud_in', cloud)],
              output='screen', condition=IfCondition(LaunchConfiguration('octomap'))),
         # elevation 전용 octomap (바닥 포함, 2D 와 별개): 지나간 사람 자국을 실시간으로 지우기 위함
         Node(package='octomap_server', executable='octomap_server_node', name='octomap_elevation',
              namespace='elevation_octomap', parameters=[octomap_elev_cfg, sim_time],
-             remappings=[('cloud_in', '/fastlio2/body_cloud')], output='log',
+             remappings=[('cloud_in', cloud)], output='log',
              condition=IfCondition(PythonExpression(
                  ["'", LaunchConfiguration('elevation'), "' == 'true' and '",
                   LaunchConfiguration('elevation_source'), "' == 'octomap'"]))),
         Node(package='luco3dnav_mapping', executable='elevation_mapper', name='elevation_mapper',
-             parameters=[elevation_cfg, sim_time, {'source': LaunchConfiguration('elevation_source')}],
+             parameters=[elevation_cfg, sim_time, {'source': LaunchConfiguration('elevation_source'),
+                                                   'cloud_topic': cloud}],
              output='screen', condition=IfCondition(LaunchConfiguration('elevation'))),
         Node(package='rviz2', executable='rviz2', name='rviz2_layers', arguments=['-d', rviz_cfg],
              parameters=[sim_time], condition=IfCondition(LaunchConfiguration('use_rviz'))),

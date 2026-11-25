@@ -21,6 +21,7 @@ ros2 bag play bags/<bag> --clock --topics /imu/data /velodyne_points  # 다른 �
 
 - 레이어 하나만: `octomap:=false` 또는 `elevation:=false`
 - elevation 예전 방식(가벼움, 지나간 사람 자국 남음): `elevation_source:=cloud`
+- 실시간 동적 필터 끄기: `dynamic_filter:=false` (아래 '실시간 동적 필터')
 - SLAM은 이미 떠 있으면: `slam:=false use_sim_time:=true`
 - 다시 쌓기: `ros2 service call /octomap_server/reset std_srvs/srv/Empty`, `ros2 service call /elevation_mapper/reset std_srvs/srv/Empty`
 
@@ -80,6 +81,21 @@ luco3dnav_bringup/scripts/bag_to_map.sh bags/<bag> [이름]            # bag -> 
 - **rebuild_layers**: 키프레임을 PGO 최종(루프 보정 후) 자세로, 정적 점만, 라이다 위치에서 raycast해 다시 쌓는다.
   자체 ROS 도메인(87)에서 octomap_server / elevation_mapper를 띄우므로 로봇 SLAM이 돌고 있어도 섞이지 않음.
   입력이 키프레임(0.5 m / 10° 간격)뿐이라 elevation 빈 칸은 실시간보다 조금 많다.
+
+## 실시간 동적 필터 (`dynamic_filter`, 기본 켜짐)
+
+`/fastlio2/body_cloud` → `/fastlio2/body_cloud_static` (사람 등 뺀 점군) → octomap / elevation / PGO 입력.
+뺀 점은 `/dynamic_filter/dynamic` (RViz로 볼 때만 발행).
+
+- 판정: 새 스캔 점을 최근 2.5 s 안의 과거 스캔 8개 거리 영상에 투영해서, 과거 광선이 그 자리를 뚫고 지나갔으면(빈 공간이었으면)
+  '새로 들어온 물체'. 2표 이상 + 같은 0.3 m voxel에 2점 이상이면 그 voxel을 1 s 동안 뺀다.
+- 정적 보호: 3 s 넘게 30 스캔 이상 꾸준히 찍힌 voxel은 빼지 않음. 성긴 가구(의자 등)는 시점마다 광선이 틈으로 빠져서
+  이게 없으면 가구가 같이 지워졌음 (정밀도 61% → 92%).
+- 성능 (bags/luco_1126_0201, 개발 PC): 스캔당 약 7 ms. 저장 후 `remove_dynamic` 판정을 정답으로 보면
+  정밀도 약 92%, 재현율 약 35%. 실시간 PGO 지도에서 사람 점 11만 → 7만 (나머지는 저장 때 `remove_dynamic`이 지움).
+  벽/가구 손실은 측정되지 않음 (2D 장애물 셀 5839 → 5848).
+- 한계: 처음부터 서 있던 사람, 로봇에 붙어 따라오는 사람(과거 광선이 그 자리를 못 봄)은 못 거른다.
+- 파라미터: `dynamic_filter.py`의 `DEFAULTS` (ROS 파라미터로도 바꿀 수 있음). 오프라인 평가: 워크스페이스 `tune/dyn/eval_dynfilter.py`.
 
 ## 설정
 

@@ -51,6 +51,7 @@ colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 2. **저장**: `save_maps` → `maps/pcd/<이름>/`
    - `map.pcd`: PGO 3D 점군. 움직인 물체(사람 등)는 자동으로 지운 정적 지도 (원본 `map_raw.pcd`, 지운 점 `map_dynamic.pcd`).
    - `octomap.bt`, `grid.pgm/yaml`(Nav2 형식), `elevation.npz/pgm/yaml`: 실시간으로 쌓인 레이어. 지나간 사람은 실시간에도 지워짐(octomap 광선 비우기).
+   - 실시간 동적 필터(`dynamic_filter`, 기본 켜짐)가 빈 공간에 새로 들어온 사람 등을 스캔 단계에서 빼고 레이어/PGO에 넣음. 끄려면 `dynamic_filter:=false`.
    - `--rebuild-layers`: 레이어를 실시간 결과 대신 **PGO 최종 자세 + 정적 점**으로 다시 만든다(약 1분). 루프 보정이 반영되고 사람 자국이 빠진다.
 3. **bag으로 다시 만들기**: `bag_to_map.sh`가 1~2를 자동으로 함 (`--rebuild-layers` 포함).
 
