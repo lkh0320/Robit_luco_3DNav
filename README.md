@@ -42,6 +42,16 @@ ros2 launch luco3dnav_bringup mapping.launch.py                    # imu_port:=/
 ros2 service call /pgo/save_maps interface/srv/SaveMaps "{file_path: '$PWD/maps/pcd', save_patches: true}"
 ```
 
+지도 공유 (GitHub Releases, 지도 하나당 릴리스 `map-<이름>`):
+
+```bash
+src/luco3dnav/luco3dnav_bringup/scripts/map_release.sh upload luco_1125_1954 "설명"   # maps/pcd/<이름> 올리기
+src/luco3dnav/luco3dnav_bringup/scripts/map_release.sh list                            # 올라간 지도 목록
+src/luco3dnav/luco3dnav_bringup/scripts/map_release.sh download luco_1125_1954         # maps/pcd/<이름> 로 받기
+```
+
+`gh auth login` 필요. 레포가 공개라 올린 지도도 공개됨.
+
 ## 주의
 
 - `lio.yaml`의 `r_bi`/`t_bi`(base_link→IMU), `r_il`/`t_il`(IMU→라이다)은 luco2 실측값. IMU는 로봇 대비 z축 -90도 장착. 바꿀 때는 description 레포(`luco2_description`) URDF와 `mapping.launch.py` 정적 TF도 같이 맞출 것.
