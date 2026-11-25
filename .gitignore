@@ -8,3 +8,7 @@ __pycache__/
 *.db3
 *.mcap
 .vscode/
+
+# 로봇 PC에서 clone 안에 두는 지도/bag (용량 큼, Releases로 공유)
+/maps/
+/bags/

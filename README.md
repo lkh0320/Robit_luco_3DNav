@@ -42,6 +42,22 @@ ros2 launch luco3dnav_bringup mapping.launch.py                    # imu_port:=/
 ros2 service call /pgo/save_maps interface/srv/SaveMaps "{file_path: '$PWD/maps/pcd', save_patches: true}"
 ```
 
+원격 보기 (로봇 PC에서 SLAM 계산, 개발 PC에서 RViz만). 두 PC 모두 luco 터미널마다 먼저:
+
+```bash
+source src/luco3dnav/luco3dnav_bringup/scripts/luco_net.sh   # 도메인 46, CycloneDDS 유니캐스트 (로봇 192.168.0.68 <-> PC 192.168.0.111)
+```
+
+```bash
+# 로봇 PC
+ros2 launch luco_bringup luco.launch.py odom_tf:=false
+ros2 launch luco3dnav_bringup mapping.launch.py use_description:=false use_static_tf:=false use_rviz:=false
+# 개발 PC
+ros2 launch luco3dnav_bringup view.launch.py
+```
+
+IP가 바뀌면 `LUCO_ROBOT_IP=... LUCO_PC_IP=...`를 export한 뒤 source. `~/.bashrc`는 건드리지 않으므로 새 터미널은 원래 설정.
+
 지도 공유 (GitHub Releases, 지도 하나당 릴리스 `map-<이름>`):
 
 ```bash
@@ -50,7 +66,8 @@ src/luco3dnav/luco3dnav_bringup/scripts/map_release.sh list                     
 src/luco3dnav/luco3dnav_bringup/scripts/map_release.sh download luco_1125_1954         # maps/pcd/<이름> 로 받기
 ```
 
-`gh auth login` 필요. 레포가 공개라 올린 지도도 공개됨.
+올리기는 `gh auth login` 필요, 받기는 gh 없이도 됨(curl). 레포가 공개라 올린 지도도 공개됨.
+지도 위치: 개발 PC는 워크스페이스 `maps/pcd/`, 로봇 PC는 레포 안 `maps/pcd/`(git 제외). bag도 로봇 PC에서는 레포 안 `bags/`에 녹화.
 
 ## 주의
 

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- 로봇 PC <-> 개발 PC 원격 통신용 CycloneDDS 설정 (scripts/luco_net.sh 가 환경변수 채움)
+     WiFi는 멀티캐스트가 불안정해서 끄고, 두 PC IP를 피어로 직접 지정(유니캐스트) -->
+<CycloneDDS xmlns="https://cdds.io/config">
+  <Domain id="any">
+    <General>
+      <Interfaces>
+        <!-- 이 PC의 WiFi 주소 -->
+        <NetworkInterface address="${LUCO_SELF_IP}"/>
+      </Interfaces>
+      <AllowMulticast>false</AllowMulticast>
+    </General>
+    <Discovery>
+      <Peers>
+        <Peer address="127.0.0.1"/>
+        <Peer address="${LUCO_ROBOT_IP}"/>
+        <Peer address="${LUCO_PC_IP}"/>
+      </Peers>
+      <!-- 한 PC에서 띄우는 ROS 노드(프로세스) 수보다 넉넉하게 -->
+      <MaxAutoParticipantIndex>120</MaxAutoParticipantIndex>
+      <ParticipantIndex>auto</ParticipantIndex>
+    </Discovery>
+  </Domain>
+</CycloneDDS>

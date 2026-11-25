@@ -8,16 +8,24 @@
 #
 # 올리기: gh (GitHub CLI) 로그인 필요 (gh auth login).
 # 받기/목록: 공개 레포라 gh 없이 curl로도 됨 (gh가 있으면 gh 사용).
-# 워크스페이스 위치: 이 스크립트 기준 ../../../.. (ws/src/luco3dnav/luco3dnav_bringup/scripts)
-# 다른 곳이면 LUCO_WS=/경로/ws 로 지정.
+# 지도 폴더 (<지도폴더>/pcd/<이름>):
+#   LUCO_MAP_DIR 지정 시 그곳 > 워크스페이스에 maps/ 가 있으면 ws/maps (개발 PC)
+#   > 없으면 레포 안 maps/ (로봇 PC: 팀 레포인 luco_ws 를 건드리지 않게 clone 안에 둠, git 제외)
 set -euo pipefail
 
 REPO=${LUCO_MAP_REPO:-lkh0320/Robit_luco_3DNav}
 HERE=$(cd "$(dirname "$(realpath "$0")")" && pwd)
-WS=${LUCO_WS:-$(cd "$HERE/../../../.." && pwd)}
-PCD_DIR=$WS/maps/pcd
+REPO_DIR=$(cd "$HERE/../.." && pwd)
+WS=${LUCO_WS:-$(cd "$REPO_DIR/../.." && pwd)}
+if [ -n "${LUCO_MAP_DIR:-}" ]; then
+  PCD_DIR=$LUCO_MAP_DIR/pcd
+elif [ -d "$WS/maps" ]; then
+  PCD_DIR=$WS/maps/pcd
+else
+  PCD_DIR=$REPO_DIR/maps/pcd
+fi
 
-usage() { sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+usage() { sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
 need_gh() { command -v gh > /dev/null || { echo "gh(GitHub CLI)가 없음: sudo apt install gh"; exit 1; }; }
 
 has_gh() { command -v gh > /dev/null; }
