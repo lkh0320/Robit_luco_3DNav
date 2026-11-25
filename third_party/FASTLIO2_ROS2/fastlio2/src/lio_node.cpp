@@ -40,6 +40,10 @@ struct NodeConfig
     // 지정하면(예: odom) 휠 오도메트리의 odom_frame -> body_frame TF를 받아
     // world_frame -> odom_frame 을 발행 (map->odom 보정 방식, 휠 odom TF와 충돌 없음)
     std::string odom_frame = "";
+    // 라이다 점별 시간으로 스캔 왜곡 보정 (time 필드 필요). false면 원본처럼 보정 없음
+    bool lidar_deskew = false;
+    // 라이다 시각 보정(초): 라이다 시각 + lidar_time_offset = IMU 시계 기준 시각
+    double lidar_time_offset = 0.0;
 };
 struct StateData
 {
@@ -113,6 +117,12 @@ public:
         std::string odom_override = this->get_parameter("odom_frame").as_string();
         if (odom_override != "__yaml__")
             m_node_config.odom_frame = odom_override;
+        if (config["lidar_deskew"])
+            m_node_config.lidar_deskew = config["lidar_deskew"].as<bool>();
+        if (config["lidar_time_offset"])
+            m_node_config.lidar_time_offset = config["lidar_time_offset"].as<double>();
+        RCLCPP_INFO(this->get_logger(), "lidar_deskew=%d lidar_time_offset=%.4f",
+                    m_node_config.lidar_deskew, m_node_config.lidar_time_offset);
         if (config["t_bi"] && config["r_bi"])
         {
             std::vector<double> t_bi_vec = config["t_bi"].as<std::vector<double>>();
@@ -188,9 +198,12 @@ public:
         // msg->fields[5].name="curvature";
         // CloudType::Ptr cloud(new pcl::PointCloud<pcl::PointXYZINormal>);
         // pcl::fromROSMsg(*msg, *cloud);
-        CloudType::Ptr cloud = Utils::velo2PCL(msg, m_builder_config.lidar_filter_num, m_builder_config.lidar_min_range, m_builder_config.lidar_max_range);
+        double start_offset = 0.0;
+        CloudType::Ptr cloud = Utils::velo2PCL(msg, m_builder_config.lidar_filter_num, m_builder_config.lidar_min_range, m_builder_config.lidar_max_range,
+                                               m_node_config.lidar_deskew, &start_offset);
         std::lock_guard<std::mutex> lock(m_state_data.lidar_mutex);
-        double timestamp = Utils::getSec(msg->header);
+        // 스캔 시작 시각 (점별 시간 curvature는 이 시각 기준 ms)
+        double timestamp = Utils::getSec(msg->header) + start_offset + m_node_config.lidar_time_offset;
         if (timestamp < m_state_data.last_lidar_time)
         {
             RCLCPP_WARN(this->get_logger(), "Lidar Message is out of order");

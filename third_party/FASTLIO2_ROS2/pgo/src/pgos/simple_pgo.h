@@ -40,6 +40,8 @@ struct Config
     int loop_submap_half_range = 5;
     double submap_resolution = 0.1;
     double min_loop_detect_duration = 10.0;
+    // 루프 ICP 최대 대응점 거리(m). 원본 10 (너무 크면 엉뚱한 정합도 점수가 낮게 나옴)
+    double loop_icp_max_corr = 10.0;
 };
 
 class SimplePGO
@@ -59,6 +61,7 @@ public:
 
     CloudType::Ptr getSubMap(int idx, int half_range, double resolution);
     std::vector<std::pair<size_t, size_t>> &historyPairs() { return m_history_pairs; }
+    std::vector<double> &historyScores() { return m_history_scores; }
     std::vector<KeyPoseWithCloud> &keyPoses() { return m_key_poses; }
 
     M3D offsetR() { return m_r_offset; }
@@ -68,6 +71,7 @@ private:
     Config m_config;
     std::vector<KeyPoseWithCloud> m_key_poses;
     std::vector<std::pair<size_t, size_t>> m_history_pairs;
+    std::vector<double> m_history_scores;
     std::vector<LoopPair> m_cache_pairs;
     M3D m_r_offset;
     V3D m_t_offset;

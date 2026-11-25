@@ -12,7 +12,7 @@ SimplePGO::SimplePGO(const Config &config) : m_config(config)
     m_t_offset.setZero();
 
     m_icp.setMaximumIterations(50);
-    m_icp.setMaxCorrespondenceDistance(10);
+    m_icp.setMaxCorrespondenceDistance(m_config.loop_icp_max_corr);
     m_icp.setTransformationEpsilon(1e-6);
     m_icp.setEuclideanFitnessEpsilon(1e-6);
     m_icp.setRANSACIterations(0);
@@ -166,6 +166,7 @@ void SimplePGO::searchForLoopPairs()
     one_pair.t_offset = m_key_poses[loop_idx].r_global.transpose() * (t_refined - m_key_poses[loop_idx].t_global);
     m_cache_pairs.push_back(one_pair);
     m_history_pairs.emplace_back(one_pair.target_id, one_pair.source_id);
+    m_history_scores.push_back(one_pair.score);
 }
 
 void SimplePGO::smoothAndUpdate()

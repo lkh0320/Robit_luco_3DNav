@@ -17,6 +17,7 @@
 #include "interface/srv/save_maps.hpp"
 #include <pcl/io/io.h>
 #include <fstream>
+#include <iomanip>
 #include <yaml-cpp/yaml.h>
 
 using namespace std::chrono_literals;
@@ -81,6 +82,8 @@ public:
         m_pgo_config.loop_submap_half_range = config["loop_submap_half_range"].as<int>();
         m_pgo_config.submap_resolution = config["submap_resolution"].as<double>();
         m_pgo_config.min_loop_detect_duration = config["min_loop_detect_duration"].as<double>();
+        if (config["loop_icp_max_corr"])
+            m_pgo_config.loop_icp_max_corr = config["loop_icp_max_corr"].as<double>();
     }
     void syncCB(const sensor_msgs::msg::PointCloud2::ConstSharedPtr &cloud_msg, const nav_msgs::msg::Odometry::ConstSharedPtr &odom_msg)
     {
@@ -279,6 +282,25 @@ public:
             *ret += *world_cloud;
         }
         txt_file.close();
+        // 키프레임 시각 + LIO(local)/보정(global) 자세, 루프 쌍 (bag 튜닝/분석용, 지도 사용에는 필요 없음)
+        {
+            std::ofstream kf(p_dir / "keyframes.txt");
+            kf << std::setprecision(17);
+            kf << "# time tl_x tl_y tl_z ql_w ql_x ql_y ql_z tg_x tg_y tg_z qg_w qg_x qg_y qg_z\n";
+            for (const auto &k : m_pgo->keyPoses())
+            {
+                Eigen::Quaterniond ql(k.r_local), qg(k.r_global);
+                kf << k.time << " " << k.t_local.x() << " " << k.t_local.y() << " " << k.t_local.z() << " "
+                   << ql.w() << " " << ql.x() << " " << ql.y() << " " << ql.z() << " "
+                   << k.t_global.x() << " " << k.t_global.y() << " " << k.t_global.z() << " "
+                   << qg.w() << " " << qg.x() << " " << qg.y() << " " << qg.z() << "\n";
+            }
+            std::ofstream lp(p_dir / "loops.txt");
+            const auto &pairs = m_pgo->historyPairs();
+            const auto &scores = m_pgo->historyScores();
+            for (size_t i = 0; i < pairs.size(); i++)
+                lp << pairs[i].first << " " << pairs[i].second << " " << (i < scores.size() ? scores[i] : -1.0) << "\n";
+        }
         pcl::io::savePCDFileBinary(map_path.string(), *ret);
         response->success = true;
         response->message = "SAVE SUCCESS!";
