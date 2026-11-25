@@ -32,7 +32,7 @@ colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 | SLAM (센서 직접 연결, RViz 포함) | `ros2 launch luco3dnav_bringup mapping.launch.py` |
 | SLAM + 지도 레이어 | `ros2 launch luco3dnav_mapping layers.launch.py` |
 | 로봇에서 SLAM (luco_bringup 실행 중) | `ros2 launch luco3dnav_mapping layers.launch.py wheel_odom:=true use_description:=false use_static_tf:=false use_rviz:=false` |
-| 개발 PC에서 원격 보기 | `ros2 launch luco3dnav_bringup view.launch.py` |
+| 개발 PC에서 원격 보기 | `ros2 launch luco3dnav_bringup view.launch.py` (SLAM + 레이어, `layers:=false`면 SLAM만) |
 | 지도 저장 (SLAM 도는 PC에서) | `ros2 run luco3dnav_mapping save_maps [이름]` |
 | bag → 지도 한 번에 | `$S/bag_to_map.sh bags/<bag> [이름]` |
 | bag 재생해서 보기 | `ros2 launch luco3dnav_mapping layers.launch.py use_sensors:=false` + `ros2 bag play bags/<bag> --clock --topics /imu/data /velodyne_points` |

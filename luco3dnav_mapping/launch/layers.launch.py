@@ -17,7 +17,7 @@
   #   로봇 PC (bringup 없이 센서만):
   ros2 launch luco3dnav_mapping layers.launch.py use_rviz:=false
   #   개발 PC (보기만):
-  ros2 launch luco3dnav_mapping layers.launch.py slam:=false octomap:=false elevation:=false
+  ros2 launch luco3dnav_bringup view.launch.py        # 레이어 화면(layers.rviz)이 기본
 
 토픽: /octomap_full, /occupied_cells_vis_array (3D voxel), /projected_map (2D occupancy),
       /elevation_mapper/elevation_map (2.5D)

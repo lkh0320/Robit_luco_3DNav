@@ -33,7 +33,7 @@ ros2 launch luco3dnav_mapping layers.launch.py wheel_odom:=true use_description:
 # 로봇 PC: bringup 없이 센서만
 ros2 launch luco3dnav_mapping layers.launch.py use_rviz:=false
 # 개발 PC: 보기만
-ros2 launch luco3dnav_mapping layers.launch.py slam:=false octomap:=false elevation:=false
+ros2 launch luco3dnav_bringup view.launch.py          # SLAM + 레이어 화면 (layers:=false 면 SLAM 화면만)
 ```
 
 로봇 PC에도 octomap_server / grid_map 패키지 설치 필요 (위 apt 명령).

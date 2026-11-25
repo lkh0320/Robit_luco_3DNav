@@ -4,6 +4,7 @@
   ros2 launch luco3dnav_bringup mapping.launch.py use_description:=false   # 모델 없이 정적 TF만
 
   로봇(luco_bringup 실행 중): mapping.launch.py wheel_odom:=true use_description:=false use_static_tf:=false
+  지도 레이어(2D/voxel/elevation)까지: luco3dnav_mapping layers.launch.py (이 launch를 포함, 인자 같음)
   bag 재생: use_sensors:=false 면 use_sim_time이 자동으로 true -> bag은 반드시 --clock 으로 재생
   ros2 launch luco3dnav_bringup mapping.launch.py use_sensors:=false
   ros2 bag play <bag> --clock --topics /imu/data /velodyne_points
