@@ -69,7 +69,8 @@ def main():
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True),
         subprocess.Popen(['ros2', 'run', 'luco3dnav_mapping', 'elevation_mapper', '--ros-args',
                           '--params-file', os.path.join(share, 'config', 'elevation.yaml'),
-                          '-p', 'cloud_topic:=/rebuild/cloud', '-p', 'tf_wait:=5.0'],
+                          '-p', 'cloud_topic:=/rebuild/cloud', '-p', 'tf_wait:=5.0',
+                          '-p', 'source:=cloud'],   # 넣는 점이 이미 정적 점이라 누적 방식이 정확
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True),
     ]
 

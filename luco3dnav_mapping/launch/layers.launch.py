@@ -7,6 +7,7 @@
   # 하나만 켜기
   ros2 launch luco3dnav_mapping layers.launch.py use_sensors:=false elevation:=false   # octomap만 (voxel + 2D)
   ros2 launch luco3dnav_mapping layers.launch.py use_sensors:=false octomap:=false     # elevation만
+  ros2 launch luco3dnav_mapping layers.launch.py elevation_source:=cloud              # elevation 예전 방식 (가벼움, 사람 자국 남음)
 
   # SLAM은 따로 띄워 둔 상태에서 레이어만
   ros2 launch luco3dnav_mapping layers.launch.py slam:=false use_sim_time:=true
@@ -41,6 +42,7 @@ def generate_launch_description():
     bringup_share = get_package_share_directory('luco3dnav_bringup')
     octomap_cfg = os.path.join(share, 'config', 'octomap.yaml')
     elevation_cfg = os.path.join(share, 'config', 'elevation.yaml')
+    octomap_elev_cfg = os.path.join(share, 'config', 'octomap_elevation.yaml')
     rviz_cfg = os.path.join(share, 'rviz', 'layers.rviz')
 
     use_sensors = LaunchConfiguration('use_sensors')
@@ -60,6 +62,9 @@ def generate_launch_description():
         DeclareLaunchArgument('imu_port', default_value='/dev/ttyUSB0'),
         DeclareLaunchArgument('octomap', default_value='true', description='3D voxel + 2D occupancy'),
         DeclareLaunchArgument('elevation', default_value='true', description='2.5D elevation'),
+        DeclareLaunchArgument('elevation_source', default_value='octomap',
+                              description='octomap: elevation 전용 octomap으로 계산(지나간 사람 자국 실시간 제거, CPU 조금 더), '
+                                          'cloud: body_cloud 누적(예전 방식, 자국 남음)'),
         DeclareLaunchArgument('use_rviz', default_value='true'),
 
         # scoped 그룹: include에 넘긴 use_rviz:=false 가 밖(이 launch의 RViz)으로 새지 않게
@@ -79,8 +84,15 @@ def generate_launch_description():
              parameters=[octomap_cfg, sim_time],
              remappings=[('cloud_in', '/fastlio2/body_cloud')],
              output='screen', condition=IfCondition(LaunchConfiguration('octomap'))),
+        # elevation 전용 octomap (바닥 포함, 2D 와 별개): 지나간 사람 자국을 실시간으로 지우기 위함
+        Node(package='octomap_server', executable='octomap_server_node', name='octomap_elevation',
+             namespace='elevation_octomap', parameters=[octomap_elev_cfg, sim_time],
+             remappings=[('cloud_in', '/fastlio2/body_cloud')], output='log',
+             condition=IfCondition(PythonExpression(
+                 ["'", LaunchConfiguration('elevation'), "' == 'true' and '",
+                  LaunchConfiguration('elevation_source'), "' == 'octomap'"]))),
         Node(package='luco3dnav_mapping', executable='elevation_mapper', name='elevation_mapper',
-             parameters=[elevation_cfg, sim_time],
+             parameters=[elevation_cfg, sim_time, {'source': LaunchConfiguration('elevation_source')}],
              output='screen', condition=IfCondition(LaunchConfiguration('elevation'))),
         Node(package='rviz2', executable='rviz2', name='rviz2_layers', arguments=['-d', rviz_cfg],
              parameters=[sim_time], condition=IfCondition(LaunchConfiguration('use_rviz'))),
