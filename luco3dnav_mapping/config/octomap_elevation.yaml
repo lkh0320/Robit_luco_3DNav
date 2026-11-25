@@ -1,4 +1,4 @@
-# elevation 전용 octomap_server (layers.launch.py 의 elevation_source:=octomap, 기본)
+# elevation 전용 octomap_server (layers.launch.py 의 elevation_source:=octomap_own 일 때만, 기본은 안 씀)
 # 2D 용 octomap(octomap.yaml)은 occupancy_max_z 0.8 에서 잘려서 그보다 높은 장애물이 빠짐
 # -> 0.15 m 위 전부를 내보내는 것을 하나 더 띄우고 /elevation_octomap/octomap_point_cloud_centers 를 elevation_mapper 가 받음.
 # octomap 은 광선이 지나간 voxel 을 비우므로 지나간 사람 자국이 실시간으로 지워진다.

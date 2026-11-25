@@ -1,12 +1,13 @@
 # 2.5D elevation map (grid_map_msgs/GridMap, layer: elevation / min / count)
 elevation_mapper:
   ros__parameters:
-    # octomap: 바닥(floor_split 아래)은 누적, 그 위 장애물은 elevation 전용 octomap_server(octomap_elevation.yaml) voxel
-    #          -> 지나간 사람 자국이 실시간으로 지워짐
-    # cloud:   body_cloud 누적 (예전 방식, 자국 남음, 가벼움)
-    # layers.launch.py 의 elevation_source 인자가 이 값을 덮어씀 (기본 octomap)
+    # octomap: 바닥(floor_split 아래)은 누적, 그 위 장애물은 octomap voxel -> 지나간 사람 자국이 실시간으로 지워짐
+    # cloud:   body_cloud 누적 (자국 남음, 가벼움)
+    # layers.launch.py 의 elevation_source 인자가 source / octomap_topic 을 덮어씀:
+    #   octomap(기본)  2D용 octomap(/octomap_point_cloud_centers, 0.15~0.8 m) 공유 -> 0.8 m 넘는 물체는 0.75 m 로 기록
+    #   octomap_own    elevation 전용 octomap 하나 더 (높이 제한 없음, CPU 코어 약 0.7개 더)
     source: octomap
-    octomap_topic: /elevation_octomap/octomap_point_cloud_centers
+    octomap_topic: /octomap_point_cloud_centers
     floor_split: 0.15       # octomap 모드: 로봇 바닥 기준 이 높이 아래는 바닥으로 누적 (2D 장애물 기준 높이와 같게)
     cloud_topic: /fastlio2/body_cloud
     map_frame: map

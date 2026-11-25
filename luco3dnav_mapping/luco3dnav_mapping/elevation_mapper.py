@@ -3,10 +3,11 @@
 source 파라미터로 입력 선택
   octomap (기본): 바닥 + 장애물 나눠서
       - 바닥(로봇 바닥 + floor_split 아래 점): body_cloud 누적 (cloud 방식과 같음)
-      - 장애물(그 위): elevation 전용 octomap_server 의 occupied voxel 중심으로 받을 때마다 새로 계산.
+      - 장애물(그 위): octomap_server 의 occupied voxel 중심으로 받을 때마다 새로 계산
+        (기본: 2D용 octomap 공유, 0.8 m 에서 잘림. elevation_source:=octomap_own 이면 전용 octomap).
         octomap 은 광선이 지나간 voxel 을 비우므로 사람 등 지나간 물체 자국이 실시간으로 지워진다.
       바닥까지 octomap 으로 하면 비스듬히 스치는 광선이 바닥 voxel 을 지워 바닥 칸이 절반 넘게 사라져서 나눔.
-      octomap_elevation 노드가 떠 있어야 함 (layers.launch.py).
+      octomap_server 가 떠 있어야 함 (layers.launch.py).
   cloud: FAST-LIO body_cloud + TF(map <- base_footprint)를 누적 (예전 방식).
       칸마다 최고 높이만 쌓여서 지나간 사람 자국이 남는다. octomap 없이 쓸 때.
 로봇 바닥 기준 max_height_above_robot 보다 높은 점(천장 등)은 버린다.
@@ -50,7 +51,7 @@ class ElevationMapper(Node):
         p = self.declare_parameter
         self.source = p('source', 'octomap').value
         self.cloud_topic = p('cloud_topic', '/fastlio2/body_cloud').value
-        self.octomap_topic = p('octomap_topic', '/elevation_octomap/octomap_point_cloud_centers').value
+        self.octomap_topic = p('octomap_topic', '/octomap_point_cloud_centers').value
         self.floor_split = float(p('floor_split', 0.15).value)   # octomap 모드: 로봇 바닥 기준 이 높이 아래 = 바닥(누적)
         self.map_frame = p('map_frame', 'map').value
         self.robot_frame = p('robot_frame', 'base_footprint').value

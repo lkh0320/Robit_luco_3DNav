@@ -6,7 +6,7 @@ FAST-LIO2 + PGO 위에 올리는 맵 레이어. 입력은 모두 `/fastlio2/body
 |---|---|---|---|
 | 3D voxel | `octomap_server` | `/octomap_full`, `/occupied_cells_vis_array` | 3D voxel (octomap), MarkerArray로 표시 |
 | 2D occupancy | `octomap_server` 투영 | `/projected_map` (nav_msgs/OccupancyGrid) | 2D occupancy |
-| 2.5D elevation | `elevation_mapper` (이 패키지) + elevation 전용 `octomap_server`(`/elevation_octomap`) | `/elevation_mapper/elevation_map` (grid_map_msgs/GridMap: elevation/min/count) | 2.5D elevation (기본 꺼짐) |
+| 2.5D elevation | `elevation_mapper` (이 패키지, 장애물은 위 octomap 공유) | `/elevation_mapper/elevation_map` (grid_map_msgs/GridMap: elevation/min/count) | 2.5D elevation (기본 꺼짐) |
 
 ```bash
 sudo apt install ros-jazzy-octomap-server ros-jazzy-octomap-rviz-plugins ros-jazzy-grid-map-ros ros-jazzy-grid-map-rviz-plugin
@@ -101,14 +101,16 @@ luco3dnav_bringup/scripts/bag_to_map.sh bags/<bag> [이름]            # bag -> 
 
 - `config/octomap.yaml`: `resolution`, `occupancy_min_z/max_z`(2D에 장애물로 넣을 높이, map z 기준. z=0 = 시작 위치 바닥)
 - `config/elevation.yaml`: `source`, `floor_split`, `resolution`, `length_x/y`(map 원점 중심 고정 크기), `max_height_above_robot`(천장 제외)
-- `config/octomap_elevation.yaml`: elevation 전용 octomap (0.15 m 위 voxel 전부 내보냄)
+- `config/octomap_elevation.yaml`: `elevation_source:=octomap_own`일 때만 쓰는 elevation 전용 octomap (0.15 m 위 voxel 전부)
 
 ## 한계
 
 - **실시간 동적 물체 제거**: octomap(3D voxel/2D)은 광선이 지나간 voxel을 비워서 지나간 사람이 실시간으로 지워진다.
-  elevation은 기본(`elevation_source:=octomap`)으로 바닥(로봇 기준 0.15 m 아래)은 점 누적, 그 위 장애물은 elevation 전용
-  octomap에서 가져와 같이 지워진다. 바닥까지 octomap으로 하면 비스듬히 스치는 광선이 바닥 voxel을 지워 바닥이 절반 넘게 비어서 나눔.
-  octomap이 하나 더 돌아서 CPU를 더 씀(개발 PC에서 코어 약 0.5개). 로봇이 버거우면 `elevation_source:=cloud`.
+  elevation은 기본(`elevation_source:=octomap`)으로 바닥(로봇 기준 0.15 m 아래)은 점 누적, 그 위 장애물은 2D용 octomap
+  voxel을 같이 써서 같이 지워진다. 바닥까지 octomap으로 하면 비스듬히 스치는 광선이 바닥 voxel을 지워 바닥이 절반 넘게 비어서 나눔.
+  2D용 octomap은 0.15~0.8 m만 내보내서 0.8 m 넘는 물체(벽, 큰 가구)는 elevation에 0.75 m로 기록된다(주행 판단엔 어차피 장애물).
+  실제 높이가 필요하면 `elevation_source:=octomap_own`(elevation 전용 octomap 하나 더, 개발 PC에서 CPU 코어 약 0.7개 더).
+  bags/luco_1126_0201 비교: 두 방식 칸의 85.6%가 5 cm 이내, 다른 곳은 0.8 m 넘는 벽/가구뿐, 사람 자국은 둘 다 없음.
 - 실시간 레이어는 점을 넣는 순간의 PGO 보정만 반영 (루프가 닫혀도 이미 쌓인 voxel은 안 고쳐짐)
   → 저장할 때 `--rebuild-layers` 또는 나중에 `rebuild_layers`
 - 실시간 octomap raycast 원점은 base_footprint(바닥). 라이다보다 0.37 m 아래라 free 공간이 약간 다름 (rebuild는 라이다 위치)
