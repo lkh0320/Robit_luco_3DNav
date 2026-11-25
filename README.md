@@ -87,7 +87,7 @@ ros2 launch luco3dnav_bringup view.launch.py
 | `fastlio2/src/utils.cpp` | **스캔 왜곡 보정**: velodyne 점별 `time` 필드를 읽어 IMU 디스큐 (`lio.yaml` `lidar_deskew`). 원본은 보정이 없어 회전 중 벽/기둥이 두 겹으로 찍힘. 쓰지 않던 법선 계산 제거 |
 | `fastlio2/src/lio_node.cpp` | `body_frame` 기준 출력(`r_bi/t_bi`), 휠 odom 연동(`odom_frame`), `lidar_time_offset` |
 | `fastlio2/src/map_builder/lidar_processor.cpp` | 퇴화 방향(복도 진행 방향 등) 라이다 가중치 감소 (`degen_enable`) |
-| `pgo/src` | `keyframes.txt`(시각 + LIO/보정 자세), `loops.txt` 저장, `loop_icp_max_corr` 설정 |
+| `pgo/src` | `keyframes.txt`(시각 + LIO/보정 자세), `loops.txt` 저장, `loop_icp_max_corr`, 오도메트리/루프 분산·Huber 설정 (원본은 루프를 거의 안 믿어 드리프트의 30%만 보정 → `pgo.yaml` 값으로 80~90%) |
 | `fastlio2/CMakeLists.txt` | `Sophus::Sophus` 링크 |
 
 튜닝 기록과 근거는 `lio.yaml` 주석에. bag 반복 재생 튜닝 도구는 개발 PC 워크스페이스 `tune/dyn/`(레포 밖).

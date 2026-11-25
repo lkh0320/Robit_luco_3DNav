@@ -42,6 +42,15 @@ struct Config
     double min_loop_detect_duration = 10.0;
     // 루프 ICP 최대 대응점 거리(m). 원본 10 (너무 크면 엉뚱한 정합도 점수가 낮게 나옴)
     double loop_icp_max_corr = 10.0;
+    // 키프레임 사이 이동량(오도메트리) 분산 (gtsam Pose3 순서: 회전 rad^2, 이동 m^2). 원본 값이 기본
+    double odom_var_rot = 1e-6;
+    double odom_var_xy = 1e-4;
+    double odom_var_z = 1e-6;
+    // 루프 분산. 0 이하면 원본처럼 ICP 점수를 6축 모두의 분산으로 씀
+    double loop_var_rot = -1.0;
+    double loop_var_trans = -1.0;
+    // 루프에 Huber 강건 커널 (잘못된 루프 영향 제한). 0 이하면 끔
+    double loop_huber = -1.0;
 };
 
 class SimplePGO

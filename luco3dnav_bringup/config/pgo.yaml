@@ -11,3 +11,17 @@ loop_score_tresh: 0.15
 loop_submap_half_range: 5
 submap_resolution: 0.1
 min_loop_detect_duration: 5.0
+# 오도메트리(키프레임 사이 이동량) / 루프를 얼마나 믿을지 (2026-11-26, tune/dyn 인공 드리프트 시험)
+#   원본은 오도메트리 회전 분산 1e-6(약 0.06도), 루프는 ICP 점수(약 0.05)를 6축 분산으로 써서
+#   루프가 궤적을 거의 못 끌어당김 -> 드리프트의 약 30%만 보정됨.
+#   bags/luco_1126_0201 에 드리프트를 섞어 시험 (보정 후 위치 RMSE, 원본 설정 -> 아래 설정):
+#     약함 (원래 24 cm)  17 -> 5.0 cm,  중간 (66 cm) 44 -> 8.8 cm,  강함 (136 cm) 89 -> 19 cm
+#   대가: 드리프트가 거의 없는 짧은 실내 bag 에서는 루프의 ICP 오차가 들어와 벽 어긋남 47.9 -> 49.4 mm (+1.5 mm)
+#   원래대로: 아래 7줄 삭제 (코드 기본값 = 원본)
+odom_var_rot: 1e-5      # rad^2
+odom_var_xy: 1e-3       # m^2
+odom_var_z: 1e-4
+loop_var_rot: 3e-4      # rad^2 (0 이하면 원본처럼 ICP 점수 사용)
+loop_var_trans: 3e-2    # m^2
+loop_huber: 1.0         # 잘못 찾은 루프가 지도 전체를 끌어당기지 않게 (0 이하면 끔)
+loop_icp_max_corr: 10.0 # 원본 값 (명시만)

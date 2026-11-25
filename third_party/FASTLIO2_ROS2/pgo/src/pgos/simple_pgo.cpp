@@ -51,7 +51,8 @@ bool SimplePGO::addKeyPose(const CloudWithPose &cloud_with_pose)
         const KeyPoseWithCloud &last_item = m_key_poses.back();
         M3D r_between = last_item.r_local.transpose() * cloud_with_pose.pose.r;
         V3D t_between = last_item.r_local.transpose() * (cloud_with_pose.pose.t - last_item.t_local);
-        gtsam::noiseModel::Diagonal::shared_ptr noise = gtsam::noiseModel::Diagonal::Variances((gtsam::Vector(6) << 1e-6, 1e-6, 1e-6, 1e-4, 1e-4, 1e-6).finished());
+        const double vr = m_config.odom_var_rot, vxy = m_config.odom_var_xy, vz = m_config.odom_var_z;
+        gtsam::noiseModel::Diagonal::shared_ptr noise = gtsam::noiseModel::Diagonal::Variances((gtsam::Vector(6) << vr, vr, vr, vxy, vxy, vz).finished());
         m_graph.add(gtsam::BetweenFactor<gtsam::Pose3>(idx - 1, idx, gtsam::Pose3(gtsam::Rot3(r_between), gtsam::Point3(t_between)), noise));
     }
     KeyPoseWithCloud item;
@@ -177,10 +178,20 @@ void SimplePGO::smoothAndUpdate()
     {
         for (LoopPair &pair : m_cache_pairs)
         {
+            gtsam::SharedNoiseModel noise;
+            if (m_config.loop_var_rot > 0 && m_config.loop_var_trans > 0)
+            {
+                const double vr = m_config.loop_var_rot, vt = m_config.loop_var_trans;
+                noise = gtsam::noiseModel::Diagonal::Variances((gtsam::Vector(6) << vr, vr, vr, vt, vt, vt).finished());
+            }
+            else
+                noise = gtsam::noiseModel::Diagonal::Variances(gtsam::Vector6::Ones() * pair.score);
+            if (m_config.loop_huber > 0)
+                noise = gtsam::noiseModel::Robust::Create(gtsam::noiseModel::mEstimator::Huber::Create(m_config.loop_huber), noise);
             m_graph.add(gtsam::BetweenFactor<gtsam::Pose3>(pair.target_id, pair.source_id,
                                                            gtsam::Pose3(gtsam::Rot3(pair.r_offset),
                                                                         gtsam::Point3(pair.t_offset)),
-                                                           gtsam::noiseModel::Diagonal::Variances(gtsam::Vector6::Ones() * pair.score)));
+                                                           noise));
         }
         std::vector<LoopPair>().swap(m_cache_pairs);
     }

@@ -84,6 +84,15 @@ public:
         m_pgo_config.min_loop_detect_duration = config["min_loop_detect_duration"].as<double>();
         if (config["loop_icp_max_corr"])
             m_pgo_config.loop_icp_max_corr = config["loop_icp_max_corr"].as<double>();
+        for (auto kv : std::vector<std::pair<const char *, double *>>{
+                 {"odom_var_rot", &m_pgo_config.odom_var_rot}, {"odom_var_xy", &m_pgo_config.odom_var_xy},
+                 {"odom_var_z", &m_pgo_config.odom_var_z}, {"loop_var_rot", &m_pgo_config.loop_var_rot},
+                 {"loop_var_trans", &m_pgo_config.loop_var_trans}, {"loop_huber", &m_pgo_config.loop_huber}})
+            if (config[kv.first])
+                *kv.second = config[kv.first].as<double>();
+        RCLCPP_INFO(this->get_logger(), "odom var rot %.1e xy %.1e z %.1e | loop var rot %.1e trans %.1e huber %.2f",
+                    m_pgo_config.odom_var_rot, m_pgo_config.odom_var_xy, m_pgo_config.odom_var_z,
+                    m_pgo_config.loop_var_rot, m_pgo_config.loop_var_trans, m_pgo_config.loop_huber);
     }
     void syncCB(const sensor_msgs::msg::PointCloud2::ConstSharedPtr &cloud_msg, const nav_msgs::msg::Odometry::ConstSharedPtr &odom_msg)
     {
