@@ -1,6 +1,8 @@
 imu_topic: /imu/data
 lidar_topic: /velodyne_points
-body_frame: base_link
+# luco2_description 루트(base_footprint, 바닥면) 기준으로 odom -> base_footprint 를 냄
+#   base_footprint -> base_link 는 URDF 고정 조인트(z +0.0613) -> TF 충돌 없음
+body_frame: base_footprint
 world_frame: odom
 print_time_cost: false
 
@@ -30,16 +32,17 @@ ieskf_max_iter: 5
 gravity_align: true
 esti_il: false
 
-# body_frame(base_link) -> IMU 외부 파라미터: p_base = r_bi * p_imu + t_bi
-# t_bi = base_link 기준 IMU 위치 (luco2_description imu_joint와 같은 값, 2026-11-25 실측)
+# body_frame(base_footprint) -> IMU 외부 파라미터: p_body = r_bi * p_imu + t_bi
+# t_bi = base_footprint 기준 IMU 위치 = base_link 기준 실측 (101.0, 2.25, 254.8) mm + base_link 높이 61.3 mm
+#   (luco2_description: base_footprint -> base_link z = wheel_radius - wheel_z = 0.1143 - 0.053)
 # r_bi = IMU 축 방향: IMU가 base_link 대비 z축으로 -90도 돌아가 장착됨
 #   (IMU x = 로봇 오른쪽(-y), IMU y = 로봇 앞(+x)). bags/luco_1125_1934 기울임 테스트로 확인:
 #   라이다-IMU 회전 정합 결과 yaw -94.7도, 라이다 축 = 로봇 축으로 판단 (2026-11-25)
 #   EBIMU-9DOFV5 사양서 축 정의(작은 칩 쪽 = +X)와 실제 장착(뒤에서 볼 때 작은 칩이 오른쪽)으로도 확인
-# lio_node는 이 값으로 IMU 자세를 base_link 자세로 바꿔서 odom->base_link TF / lio_odom / body_cloud를 낸다.
-# 두 키를 지우면 원래처럼 base_link == IMU 로 동작 (핸드헬드 bag 등)
+# lio_node는 이 값으로 IMU 자세를 body_frame 자세로 바꿔서 odom->base_footprint TF / lio_odom / body_cloud를 낸다.
+# 두 키를 지우면 원래처럼 body_frame == IMU 로 동작 (핸드헬드 bag 등)
 r_bi: [0.0, 1.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
-t_bi: [0.101, 0.00225, 0.2548]
+t_bi: [0.101, 0.00225, 0.3161]
 
 # 라이다 -> IMU 외부 파라미터: p_imu = r_il * p_lidar + t_il  (모두 IMU 좌표계 기준)
 # r_il = r_bi^T (라이다 축 = 로봇 축이므로): IMU 기준 라이다는 z축 +90도

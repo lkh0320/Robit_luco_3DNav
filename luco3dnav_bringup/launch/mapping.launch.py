@@ -36,11 +36,15 @@ def generate_launch_description():
     sim_time = {'use_sim_time': ParameterValue(LaunchConfiguration('use_sim_time'), value_type=bool)}
 
     # luco2_description URDF와 같은 값 (실측 2026-11-25, base_link 기준)
-    #   imu_link = lio.yaml t_bi, velodyne = t_bi + t_il
+    #   lio.yaml t_bi는 base_footprint 기준이라 아래 base_link 기준 값보다 z가 0.0613 큼
     # use_description:=true(기본)면 robot_state_publisher가 같은 TF를 주므로 정적 TF는 자동으로 꺼짐
     static_tf_on = IfCondition(PythonExpression(
         ["'", use_static_tf, "' == 'true' and '", use_description, "' != 'true'"]))
     static_tf = [
+        # base_footprint(바닥) -> base_link: luco2_description base_joint (z = 0.1143 - 0.053)
+        Node(package='tf2_ros', executable='static_transform_publisher', name='footprint_to_base',
+             arguments=['--z', '0.0613', '--frame-id', 'base_footprint', '--child-frame-id', 'base_link'],
+             parameters=[sim_time], condition=static_tf_on),
         Node(package='tf2_ros', executable='static_transform_publisher', name='base_to_velodyne',
              arguments=['--x', '0.12545', '--y', '0.0', '--z', '0.3064',
                         '--frame-id', 'base_link', '--child-frame-id', 'velodyne'],
