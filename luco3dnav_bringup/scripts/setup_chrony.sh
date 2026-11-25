@@ -32,6 +32,9 @@ if [ "$ROLE" = robot ]; then
     echo "# >>> luco chrony (robot: NTP 서버)"
     echo "# 운영 PC들이 이 PC를 NTP 서버로 쓰도록 허용 (/24 = 서브넷 마스크 255.255.255.0)"
     for n in $NETS; do echo "allow $n"; done
+    echo "# 인터넷이 될 때는 실제 시각을 따름 (이게 없으면 로봇 시계가 혼자 틀어져서"
+    echo "# 인터넷 NTP도 같이 쓰는 운영 PC가 로봇을 '틀린 시계(x)'로 판정하고 무시함)"
+    echo "pool ntp.ubuntu.com iburst maxsources 4"
     echo "# 인터넷(상위 NTP 서버)이 끊겨도 이 PC의 시계를 기준으로 시간을 제공"
     echo "local stratum 10"
     echo "# <<< luco chrony"
