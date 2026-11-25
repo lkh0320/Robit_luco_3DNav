@@ -5,6 +5,8 @@
   ros2 run luco3dnav_mapping save_maps my_map --tar    # maps/pcd/my_map.tar.gz 도 만듦
   ros2 run luco3dnav_mapping save_maps --no-patches    # PGO 키프레임 패치 생략 (동적 물체 제거도 생략됨)
   ros2 run luco3dnav_mapping save_maps --keep-dynamic  # 사람 등 움직인 물체 제거 안 함
+  ros2 run luco3dnav_mapping save_maps --rebuild-layers  # octomap/2D/elevation을 실시간 결과 대신
+                                                          # PGO 최종 자세 + 정적 점으로 다시 만듦 (rebuild_layers, 약 1분)
 
 SLAM(PGO)이 돌고 있는 PC에서 실행해야 한다 (PGO가 자기 디스크에 map.pcd를 씀).
   로봇 PC -> ~/luco_ws/src/luco3dnav/maps/pcd/<이름>,  개발 PC -> <워크스페이스>/maps/pcd/<이름>
@@ -20,6 +22,7 @@ SLAM(PGO)이 돌고 있는 PC에서 실행해야 한다 (PGO가 자기 디스크
 """
 import argparse
 import os
+import shutil
 import subprocess
 import tarfile
 import time
@@ -141,6 +144,19 @@ def remove_dynamic(out):
     return True, lines[-1] + ' (원본 map_raw.pcd)'
 
 
+def rebuild_layers(out, keep_dynamic):
+    cmd = ['ros2', 'run', 'luco3dnav_mapping', 'rebuild_layers', out] + (['--keep-dynamic'] if keep_dynamic else [])
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+    except subprocess.TimeoutExpired:
+        return False, '시간 초과'
+    lines = [ln.strip() for ln in p.stdout.splitlines() if ln.strip().startswith('[')]
+    if p.returncode != 0:
+        tail = (p.stderr or p.stdout).strip().splitlines()
+        return False, '; '.join(lines) or (tail[-1] if tail else '실패')
+    return True, '; '.join(lines)
+
+
 def save_octomap(out):
     path = os.path.join(out, 'octomap.bt')
     try:
@@ -162,6 +178,8 @@ def main():
     ap.add_argument('--no-patches', action='store_true', help='PGO 키프레임 패치 생략')
     ap.add_argument('--tar', action='store_true', help='<이름>.tar.gz 한 파일로도 묶기')
     ap.add_argument('--keep-dynamic', action='store_true', help='움직인 물체(사람 등) 제거 안 함')
+    ap.add_argument('--rebuild-layers', action='store_true',
+                    help='레이어를 실시간 결과 대신 키프레임으로 다시 만듦 (rebuild_layers, 패치 필요)')
     args, ros_args = ap.parse_known_args()
 
     root = os.path.abspath(os.path.expanduser(args.dir or default_map_root()))
@@ -174,13 +192,21 @@ def main():
     results = {}
     try:
         node.wait_msgs(['grid', 'elevation'], timeout=5.0)
+        # 같은 이름에 다시 저장: 이전 저장의 부산물(제거 전 원본, 이전 레이어) 정리
+        for f in ('map_raw.pcd', 'map_dynamic.pcd', 'map_static.pcd'):
+            if os.path.exists(os.path.join(out, f)):
+                os.remove(os.path.join(out, f))
+        shutil.rmtree(os.path.join(out, 'layers_old'), ignore_errors=True)
         results['pgo (map.pcd)'] = node.save_pgo(out, not args.no_patches)
         if results['pgo (map.pcd)'][0] and not args.no_patches and not args.keep_dynamic:
             results['동적 물체 제거 (map.pcd)'] = remove_dynamic(out)
-        results['octomap (octomap.bt)'] = save_octomap(out)
-        node.wait_msgs(['grid', 'elevation'], timeout=3.0)
-        results['2D (grid.pgm/yaml)'] = node.save_grid(out)
-        results['elevation (elevation.npz/pgm)'] = node.save_elevation(out)
+        if args.rebuild_layers and results['pgo (map.pcd)'][0] and not args.no_patches:
+            results['레이어 재생성 (octomap/2D/elevation)'] = rebuild_layers(out, args.keep_dynamic)
+        else:
+            results['octomap (octomap.bt)'] = save_octomap(out)
+            node.wait_msgs(['grid', 'elevation'], timeout=3.0)
+            results['2D (grid.pgm/yaml)'] = node.save_grid(out)
+            results['elevation (elevation.npz/pgm)'] = node.save_elevation(out)
     finally:
         node.destroy_node()
         rclpy.try_shutdown()

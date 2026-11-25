@@ -26,6 +26,7 @@ setup(
             'elevation_mapper = luco3dnav_mapping.elevation_mapper:main',
             'save_maps = luco3dnav_mapping.save_maps:main',
             'remove_dynamic = luco3dnav_mapping.remove_dynamic:main',
+            'rebuild_layers = luco3dnav_mapping.rebuild_layers:main',
         ],
     },
 )

@@ -95,6 +95,17 @@ def range_image(pts_s, az_res):
 def main():
     ap = argparse.ArgumentParser(description='PGO 지도에서 움직이는 물체(사람 등) 지우기')
     ap.add_argument('map_dir')
+    add_args(ap)
+    ap.add_argument('--replace', action='store_true', help='map.pcd 를 정적 지도로 교체 (원본 map_raw.pcd 보관)')
+    args = ap.parse_args()
+
+    d = args.map_dir
+    kfs, P, I, K, dyn = classify(d, args)
+    write_outputs(d, P, I, dyn, args.replace)
+
+
+def add_args(ap):
+    """판정 파라미터 (rebuild_layers 도 같이 씀)"""
     ap.add_argument('--sensor', default='0.12545,0.0,0.3677',
                     help='base_footprint 기준 라이다 위치 x,y,z (luco2: base_link (0.12545, 0, 0.3064) + 0.0613)')
     ap.add_argument('--max-range', type=float, default=15.0, help='판정에 쓰는 최대 거리 (m)')
@@ -104,10 +115,11 @@ def main():
     ap.add_argument('--ratio', type=float, default=0.6, help='뚫고 지나감 / (뚫고 지나감 + 맞음) 이 이 값 이상이면 동적')
     ap.add_argument('--az-res', type=float, default=1.0, help='거리 영상 방위각 해상도 (도)')
     ap.add_argument('--voxel', type=float, default=0.1, help='판정 단위 voxel (m). 같은 voxel 점은 같이 지움')
-    ap.add_argument('--replace', action='store_true', help='map.pcd 를 정적 지도로 교체 (원본 map_raw.pcd 보관)')
-    args = ap.parse_args()
 
-    d = args.map_dir
+
+def classify(d, args):
+    """키프레임(patches + poses.txt) 읽고 동적 점 판정.
+    반환: kfs [(patch 이름, t, q_wxyz)], P (map 좌표 점), I (intensity), K (점별 키프레임 번호), dyn (bool)"""
     t_bs = np.array([float(v) for v in args.sensor.split(',')])
     kfs = load_keyframes(d)
     print(f'키프레임 {len(kfs)}개 읽는 중...')
@@ -168,9 +180,12 @@ def main():
     dyn_v[np.nonzero(cand)[0][dyn_c]] = True
     dyn = dyn_v[vinv]
     print(f'동적 점 {dyn.sum()}개 ({100 * dyn.mean():.2f}%), 정적 {(~dyn).sum()}개')
+    return kfs, P, I, K, dyn
 
+
+def write_outputs(d, P, I, dyn, replace):
     write_pcd(os.path.join(d, 'map_dynamic.pcd'), P[dyn], I[dyn])
-    if args.replace:
+    if replace:
         # 원본은 한 번만 보관 (다시 돌려도 map_raw.pcd 는 처음 PGO 지도 그대로)
         if not os.path.exists(os.path.join(d, 'map_raw.pcd')):
             shutil.copy(os.path.join(d, 'map.pcd'), os.path.join(d, 'map_raw.pcd'))
