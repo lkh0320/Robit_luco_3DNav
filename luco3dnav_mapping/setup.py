@@ -24,6 +24,7 @@ setup(
     entry_points={
         'console_scripts': [
             'elevation_mapper = luco3dnav_mapping.elevation_mapper:main',
+            'save_maps = luco3dnav_mapping.save_maps:main',
         ],
     },
 )

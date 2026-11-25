@@ -38,6 +38,28 @@ ros2 launch luco3dnav_mapping layers.launch.py slam:=false octomap:=false elevat
 
 로봇 PC에도 octomap_server / grid_map 패키지 설치 필요 (위 apt 명령).
 
+## 지도 한 번에 저장
+
+SLAM(PGO)이 돌고 있는 PC에서 실행 (로봇에서 SLAM 중이면 로봇 PC에서, luco 환경 source 후).
+
+```bash
+ros2 run luco3dnav_mapping save_maps                # 이름 luco_<월일_시분>
+ros2 run luco3dnav_mapping save_maps my_map --tar   # my_map.tar.gz 한 파일로도
+```
+
+`maps/pcd/<이름>/` (로봇 PC는 clone 안 `maps/pcd/`)에 저장:
+
+| 파일 | 내용 |
+|---|---|
+| `map.pcd`, `poses.txt`, `patches/` | PGO 3D 점군 (localizer용). `--no-patches`로 패치 생략 |
+| `octomap.bt` | 3D voxel |
+| `grid.pgm`, `grid.yaml` | 2D occupancy (Nav2 map_server 형식) |
+| `elevation.npz` | 2.5D elevation 원본 (elevation/min/count, NaN = 없음) |
+| `elevation.pgm`, `elevation.yaml` | elevation 미리보기 (밝을수록 높음) |
+| `info.yaml` | 저장 시각, 항목별 성공 여부 |
+
+`map_release.sh upload <이름>`은 이 폴더를 tar.gz 하나로 올리므로 위 파일이 모두 같이 공유됨.
+
 ## 설정
 
 - `config/octomap.yaml`: `resolution`, `occupancy_min_z/max_z`(2D에 장애물로 넣을 높이, map z 기준. z=0 = 시작 위치 바닥)
