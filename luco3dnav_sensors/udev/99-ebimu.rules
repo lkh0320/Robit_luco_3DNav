@@ -1,0 +1,3 @@
+# EBIMU (CP2102 USB-UART) -> /dev/ebimu
+# 설치: sudo cp 99-ebimu.rules /etc/udev/rules.d/ && sudo udevadm control --reload && sudo udevadm trigger
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", SYMLINK+="ebimu", MODE="0666"

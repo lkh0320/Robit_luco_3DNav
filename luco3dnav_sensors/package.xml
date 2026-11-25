@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>luco3dnav_sensors</name>
+  <version>0.1.0</version>
+  <description>Luco3DNav sensor drivers: EBIMU serial to sensor_msgs/Imu, Velodyne VLP-16 launch</description>
+  <maintainer email="lkh060320@gmail.com">lkh-ubuntu</maintainer>
+  <license>MIT</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>python3-serial</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>velodyne_driver</exec_depend>
+  <exec_depend>velodyne_pointcloud</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

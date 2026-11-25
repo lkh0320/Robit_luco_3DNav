@@ -1,0 +1,29 @@
+import os
+from glob import glob
+from setuptools import find_packages, setup
+
+package_name = 'luco3dnav_sensors'
+
+setup(
+    name=package_name,
+    version='0.1.0',
+    packages=find_packages(exclude=['test']),
+    data_files=[
+        ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
+        ('share/' + package_name, ['package.xml']),
+        (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
+        (os.path.join('share', package_name, 'launch'), glob('launch/*.py')),
+        (os.path.join('share', package_name, 'udev'), glob('udev/*.rules')),
+    ],
+    install_requires=['setuptools'],
+    zip_safe=True,
+    maintainer='lkh-ubuntu',
+    maintainer_email='lkh060320@gmail.com',
+    description='Luco3DNav sensor drivers: EBIMU serial -> sensor_msgs/Imu, Velodyne VLP-16 launch',
+    license='MIT',
+    entry_points={
+        'console_scripts': [
+            'ebimu_imu_node = luco3dnav_sensors.ebimu_imu_node:main',
+        ],
+    },
+)
