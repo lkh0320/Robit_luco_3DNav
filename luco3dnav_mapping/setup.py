@@ -25,6 +25,7 @@ setup(
         'console_scripts': [
             'elevation_mapper = luco3dnav_mapping.elevation_mapper:main',
             'save_maps = luco3dnav_mapping.save_maps:main',
+            'remove_dynamic = luco3dnav_mapping.remove_dynamic:main',
         ],
     },
 )

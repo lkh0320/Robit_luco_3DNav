@@ -3,13 +3,15 @@
   ros2 run luco3dnav_mapping save_maps                 # 이름 = luco_<월일_시분>
   ros2 run luco3dnav_mapping save_maps my_map          # 이름 지정
   ros2 run luco3dnav_mapping save_maps my_map --tar    # maps/pcd/my_map.tar.gz 도 만듦
-  ros2 run luco3dnav_mapping save_maps --no-patches    # PGO 키프레임 패치 생략
+  ros2 run luco3dnav_mapping save_maps --no-patches    # PGO 키프레임 패치 생략 (동적 물체 제거도 생략됨)
+  ros2 run luco3dnav_mapping save_maps --keep-dynamic  # 사람 등 움직인 물체 제거 안 함
 
 SLAM(PGO)이 돌고 있는 PC에서 실행해야 한다 (PGO가 자기 디스크에 map.pcd를 씀).
   로봇 PC -> ~/luco_ws/src/luco3dnav/maps/pcd/<이름>,  개발 PC -> <워크스페이스>/maps/pcd/<이름>
 
 저장 파일
-  map.pcd, poses.txt, patches/   PGO 3D 점군 (localizer용)
+  map.pcd, poses.txt, patches/   PGO 3D 점군 (localizer용). 움직인 물체(사람 등) 제거된 정적 지도
+  map_raw.pcd, map_dynamic.pcd   제거 전 원본 / 제거된 점 (remove_dynamic.py 참고)
   octomap.bt                     3D voxel (octovis / octomap_server <파일> 로 다시 띄우기)
   grid.pgm, grid.yaml            2D occupancy (Nav2 map_server 형식)
   elevation.npz                  2.5D elevation 원본 (elevation/min/count float32, NaN = 없음)
@@ -126,6 +128,19 @@ class Saver(Node):
         return True, f'유효 셀 {int(valid.sum())}, z {zmin:.2f} ~ {zmax:.2f} m'
 
 
+def remove_dynamic(out):
+    try:
+        p = subprocess.run(['ros2', 'run', 'luco3dnav_mapping', 'remove_dynamic', out, '--replace'],
+                           capture_output=True, text=True, timeout=600)
+    except subprocess.TimeoutExpired:
+        return False, '시간 초과'
+    lines = [ln for ln in (p.stdout + p.stderr).splitlines() if ln.startswith('동적 점')]
+    if p.returncode != 0 or not lines:
+        tail = (p.stderr or p.stdout).strip().splitlines()
+        return False, tail[-1] if tail else '실패'
+    return True, lines[-1] + ' (원본 map_raw.pcd)'
+
+
 def save_octomap(out):
     path = os.path.join(out, 'octomap.bt')
     try:
@@ -146,6 +161,7 @@ def main():
     ap.add_argument('--dir', default=None, help='저장할 상위 폴더 (기본: maps/pcd)')
     ap.add_argument('--no-patches', action='store_true', help='PGO 키프레임 패치 생략')
     ap.add_argument('--tar', action='store_true', help='<이름>.tar.gz 한 파일로도 묶기')
+    ap.add_argument('--keep-dynamic', action='store_true', help='움직인 물체(사람 등) 제거 안 함')
     args, ros_args = ap.parse_known_args()
 
     root = os.path.abspath(os.path.expanduser(args.dir or default_map_root()))
@@ -159,6 +175,8 @@ def main():
     try:
         node.wait_msgs(['grid', 'elevation'], timeout=5.0)
         results['pgo (map.pcd)'] = node.save_pgo(out, not args.no_patches)
+        if results['pgo (map.pcd)'][0] and not args.no_patches and not args.keep_dynamic:
+            results['동적 물체 제거 (map.pcd)'] = remove_dynamic(out)
         results['octomap (octomap.bt)'] = save_octomap(out)
         node.wait_msgs(['grid', 'elevation'], timeout=3.0)
         results['2D (grid.pgm/yaml)'] = node.save_grid(out)
