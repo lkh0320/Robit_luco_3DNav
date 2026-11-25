@@ -26,4 +26,4 @@ octomap_server:
     publish_free_space: false
     incremental_2D_projection: false   # true면 jazzy octomap_server에서 projected_map이 전부 unknown으로 나옴
     compress_map: true
-    latch: false
+    latch: true    # transient_local: bag 끝/SLAM 정지 후에도 save_maps가 마지막 맵을 받음

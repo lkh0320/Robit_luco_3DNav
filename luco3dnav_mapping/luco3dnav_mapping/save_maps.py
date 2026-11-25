@@ -29,7 +29,7 @@ from ament_index_python.packages import get_package_share_directory
 from grid_map_msgs.msg import GridMap
 from nav_msgs.msg import OccupancyGrid
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
 
 def default_map_root():
@@ -51,8 +51,8 @@ class Saver(Node):
     def __init__(self):
         super().__init__('save_maps')
         self.msgs = {}
-        # octomap_server / elevation_mapper 모두 volatile 로 계속 발행하므로 다음 메시지를 받음
-        qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE)
+        # octomap_server(latch: true) / elevation_mapper 둘 다 transient_local 로 발행 -> 마지막 맵을 바로 받음
+        qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.create_subscription(OccupancyGrid, '/projected_map', lambda m: self.msgs.setdefault('grid', m), qos)
         self.create_subscription(GridMap, '/elevation_mapper/elevation_map',
                                  lambda m: self.msgs.setdefault('elevation', m), qos)

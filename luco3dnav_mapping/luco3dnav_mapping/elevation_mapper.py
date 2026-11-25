@@ -14,7 +14,8 @@ import numpy as np
 import rclpy
 from grid_map_msgs.msg import GridMap
 from rclpy.node import Node
-from rclpy.qos import qos_profile_sensor_data
+from rclpy.clock import Clock, ClockType
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
 from rclpy.time import Time
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs_py import point_cloud2
@@ -62,11 +63,16 @@ class ElevationMapper(Node):
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         self.sub = self.create_subscription(PointCloud2, self.cloud_topic, self._on_cloud, qos_profile_sensor_data)
-        self.pub = self.create_publisher(GridMap, '~/elevation_map', 1)
+        # latched(transient_local): bag이 끝나거나 SLAM이 멈춘 뒤에도 마지막 맵을 save_maps / RViz가 받을 수 있게
+        self.pub = self.create_publisher(GridMap, '~/elevation_map', QoSProfile(
+            depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
         self.create_service(Empty, '~/reset', self._on_reset)
-        self.create_timer(1.0 / rate, self._publish)
+        # 벽시계 타이머: use_sim_time에서 /clock이 멈춰도(bag 끝) 마지막 변경분을 발행
+        wall = Clock(clock_type=ClockType.STEADY_TIME)
+        self.create_timer(1.0 / rate, self._publish, clock=wall)
+        self.published_clouds = -1
         self.queue = deque(maxlen=50)
-        self.create_timer(0.02, self._process_queue)
+        self.create_timer(0.02, self._process_queue, clock=wall)
         self.n_dropped = 0
         self.last_stamp = None
         self.n_clouds = 0
@@ -151,8 +157,9 @@ class ElevationMapper(Node):
         valid = self.count >= self.min_points
         self.get_logger().info(f'클라우드 {self.n_clouds}개 통합, 유효 셀 {int(valid.sum())}, '
                                f'대기 {len(self.queue)}, 버림 {self.n_dropped}', throttle_duration_sec=10.0)
-        if self.pub.get_subscription_count() == 0:
+        if self.n_clouds == self.published_clouds:   # 바뀐 게 없으면 다시 안 보냄 (latched라 마지막 것 유지)
             return
+        self.published_clouds = self.n_clouds
         nan = np.float32(np.nan)
         msg = GridMap()
         msg.header.frame_id = self.map_frame
