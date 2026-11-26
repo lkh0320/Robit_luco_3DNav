@@ -34,6 +34,7 @@ def generate_launch_description():
     use_description = LaunchConfiguration('use_description')
     wheel_odom = LaunchConfiguration('wheel_odom')
     use_rviz = LaunchConfiguration('use_rviz')
+    use_pgo = LaunchConfiguration('use_pgo')
     imu_port = LaunchConfiguration('imu_port')
     # bag 데이터 시각과 노드 시각을 맞추기 위해 /clock 사용 (bool 파라미터로 전달)
     sim_time = {'use_sim_time': ParameterValue(LaunchConfiguration('use_sim_time'), value_type=bool)}
@@ -86,6 +87,8 @@ def generate_launch_description():
         DeclareLaunchArgument('use_static_tf', default_value='true',
                               description='use_description:=false일 때 정적 TF 발행'),
         DeclareLaunchArgument('use_rviz', default_value='true'),
+        DeclareLaunchArgument('use_pgo', default_value='true',
+                              description='false: 지도 만들기 없이 (localization.launch.py 가 씀)'),
         DeclareLaunchArgument('pgo_cloud', default_value='/fastlio2/body_cloud',
                               description='PGO 키프레임 점군 입력 (layers.launch.py 가 동적 필터 결과로 바꿈)'),
         DeclareLaunchArgument('imu_port', default_value='/dev/ttyUSB0'),
@@ -102,7 +105,7 @@ def generate_launch_description():
              parameters=[{'config_path': lio_cfg, 'odom_frame': PythonExpression(
                  ["'odom' if '", wheel_odom, "' == 'true' else '__yaml__'"])}, sim_time], output='screen'),
         Node(package='pgo', executable='pgo_node', name='pgo_node', namespace='pgo',
-             parameters=[{'config_path': pgo_cfg}, sim_time], output='screen',
+             parameters=[{'config_path': pgo_cfg}, sim_time], output='screen', condition=IfCondition(use_pgo),
              remappings=[('/fastlio2/body_cloud', LaunchConfiguration('pgo_cloud'))]),
         Node(package='rviz2', executable='rviz2', name='rviz2', arguments=['-d', rviz_cfg],
              parameters=[sim_time],

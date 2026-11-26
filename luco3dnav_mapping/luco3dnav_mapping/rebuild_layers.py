@@ -60,7 +60,7 @@ def main():
     from std_msgs.msg import Header
     from tf2_ros import TransformBroadcaster
     from ament_index_python.packages import get_package_share_directory
-    from luco3dnav_mapping.elevation_map import elevation_from_points, elevation_params
+    from luco3dnav_mapping.elevation_map import elevation_from_points, elevation_params, local_floor
     from luco3dnav_mapping.save_maps import Saver, save_octomap
 
     share = get_package_share_directory('luco3dnav_mapping')
@@ -138,7 +138,7 @@ def main():
         saver.wait_msgs(['grid'], timeout=10.0)
         results = {
             'octomap (octomap.bt)': save_octomap(d),
-            '2D (grid.pgm/yaml)': saver.save_grid(d),
+            '2D (grid.pgm/yaml)': saver.save_grid(d, (P[~dyn], local_floor(P[~dyn], np.array([t for _, t, _ in kfs])))),
             'elevation (elevation.npz/pgm/png)': elevation_from_points(
                 P[~dyn], np.array([t for _, t, _ in kfs]), elevation_params(share), d),
         }

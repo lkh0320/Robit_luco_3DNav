@@ -38,6 +38,8 @@ colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 | bag 재생해서 보기 | `ros2 launch luco3dnav_mapping layers.launch.py use_sensors:=false` + `ros2 bag play bags/<bag> --clock --topics /imu/data /velodyne_points` |
 | 저장된 지도에서 사람 등 지우기 | `ros2 run luco3dnav_mapping remove_dynamic maps/pcd/<이름> --replace` |
 | 저장된 지도의 레이어 다시 만들기 | `ros2 run luco3dnav_mapping rebuild_layers maps/pcd/<이름>` |
+| 기준 지도 정하기 (위치 추정·경로 계획용) | `ros2 run luco3dnav_mapping set_nav_map maps/pcd/<이름>` → `maps/nav/` |
+| 저장된 지도에서 위치 추정 시작 | `ros2 launch luco3dnav_bringup localization.launch.py` (로봇: `wheel_odom:=true use_description:=false use_static_tf:=false use_rviz:=false`) |
 | 지도 공유 | `$S/map_release.sh upload <이름> "설명"` / `list` / `download <이름>` |
 | 지도 보기 | `pcl_viewer maps/pcd/<이름>/map.pcd` (뷰어에서 `5` = 높이 색) |
 | 두 PC 원격 통신 설정 | `source $S/luco_net.sh` (개발 PC는 alias `luco_net`) |
@@ -56,6 +58,17 @@ colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 3. **bag으로 다시 만들기**: `bag_to_map.sh`가 1~2를 자동으로 함 (`--rebuild-layers` 포함).
 
 지도/bag 위치: 개발 PC는 워크스페이스 `maps/pcd/`, `bags/`, 로봇 PC는 레포 안 `maps/pcd/`, `bags/` (git 제외, 공유는 `map_release.sh`).
+
+## 저장된 지도에서 위치 추정 (localization)
+
+1. **기준 지도**: `set_nav_map maps/pcd/<이름>`이 `map.pcd`, `grid.pgm/yaml`, `elevation.*`, `voxels.pcd/ply`, `octomap.bt`,
+   `poses.txt`를 `maps/nav/`로 복사 (이전 것은 `maps/nav_old/`). 다른 PC로 옮길 땐 이 폴더만 복사하면 됨.
+2. **실행**: `localization.launch.py` = 센서 + FAST-LIO (PGO 없음) + `localizer_node` + `global_localize` + Nav2 `map_server`(`/map`).
+   - `global_localize`: 시작 후 3초 스캔을 모아 벽 높이 2D 이미지를 지도와 FFT 상관(yaw 2도 간격)으로 맞추고, 상위 후보를
+     ICP로 골라 localizer에 넘김. **초기 위치를 줄 필요 없음** (bag 시험 7/7 첫 시도 성공, 약 1.5초).
+   - 그 뒤 추적은 localizer (TF `map → lio_world`). 못 찾으면(점수 낮음/대칭 구조) 더 모아서 다시 하고, 그래도 안 되면
+     RViz "2D Pose Estimate"로 대략 찍어 주면 됨.
+   - 다른 지도: `map:=<폴더>`. bag: `use_sensors:=false` + `ros2 bag play <bag> --clock --topics /imu/data /velodyne_points`.
 
 ## 원격 (로봇 PC 계산, 개발 PC는 RViz)
 

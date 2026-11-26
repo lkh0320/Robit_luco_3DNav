@@ -1,0 +1,16 @@
+# localizer_node 설정 (third_party/FASTLIO2_ROS2/localizer 원본 값, 프레임만 우리 구조에 맞춤)
+cloud_topic: /fastlio2/body_cloud
+odom_topic: /fastlio2/lio_odom
+map_frame: map
+local_frame: lio_world    # 실제로는 lio_odom header.frame_id 를 씀
+update_hz: 10.0
+
+rough_scan_resolution: 0.25
+rough_map_resolution: 0.25
+rough_max_iteration: 5
+rough_score_thresh: 0.2
+
+refine_scan_resolution: 0.1
+refine_map_resolution: 0.1
+refine_max_iteration: 5
+refine_score_thresh: 0.1

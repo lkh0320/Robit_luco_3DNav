@@ -148,3 +148,32 @@ def save_elevation_layers(img_layers, res, x0, y0, frame, out):
                 f'resolution: {res}\norigin: [{x0}, {y0}, 0.0]\nz_min: {zmin:.3f}\nz_max: {zmax:.3f}\n'
                 f'frame: {frame}\n')
     return True, f'유효 셀 {int(valid.sum())}, z {zmin:.2f} ~ {zmax:.2f} m (+ elevation.png)'
+
+
+def despeckle_grid(img, res, origin, P, floor, max_cells=12, min_points=20, band=(0.1, 2.0)):
+    """작은 장애물 덩어리 지우기 (영문 설명은 lidar_map_cleaner). remove small occupied blobs of a grid image (row 0 = top, 0 = occupied) that the 3D map does not support.
+
+    A blob (8-connected occupied cells) of at most `max_cells` cells is set free when fewer than `min_points` map
+    points between floor + band[0] and floor + band[1] fall into its cells (octomap specks from noise / leftovers).
+    Real thin objects (table legs, poles) are seen from many keyframes and keep their points. -> number of cells freed
+    """
+    from scipy import ndimage
+    h, w = img.shape
+    rel = P[:, 2] - floor
+    s = (rel > band[0]) & (rel < band[1])
+    col = np.floor((P[s, 0] - origin[0]) / res).astype(np.int64)
+    row = h - 1 - np.floor((P[s, 1] - origin[1]) / res).astype(np.int64)
+    ok = (col >= 0) & (col < w) & (row >= 0) & (row < h)
+    cnt = np.zeros(img.shape, np.int64)
+    np.add.at(cnt, (row[ok], col[ok]), 1)
+    lab, n = ndimage.label(img == 0, np.ones((3, 3)))
+    if n == 0:
+        return 0
+    idx = np.arange(1, n + 1)
+    size = ndimage.sum(np.ones_like(cnt), lab, idx)
+    pts = ndimage.sum(cnt, lab, idx)
+    drop = np.zeros(n + 1, bool)
+    drop[1:] = (size <= max_cells) & (pts < min_points)
+    m = drop[lab]
+    img[m] = 254
+    return int(m.sum())

@@ -39,8 +39,8 @@ from nav_msgs.msg import OccupancyGrid
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
-from luco3dnav_mapping.elevation_map import (elevation_from_points, elevation_params, save_elevation_layers,
-                                           write_pgm)
+from luco3dnav_mapping.elevation_map import (despeckle_grid, elevation_from_points, elevation_params,
+                                           local_floor, save_elevation_layers, write_pgm)
 from luco3dnav_mapping.remove_dynamic import load_keyframes, read_pcd
 
 
@@ -80,7 +80,8 @@ class Saver(Node):
         r = fut.result()
         return r.success, r.message or 'map.pcd'
 
-    def save_grid(self, out):
+    def save_grid(self, out, evidence=None):
+        """evidence: (P, floor) 정적 3D 점 -> 3D 근거 없는 작은 장애물 덩어리(잡티)를 빈 칸으로"""
         m = self.msgs.get('grid')
         if m is None:
             return False, '/projected_map 수신 안 됨'
@@ -88,14 +89,17 @@ class Saver(Node):
         img = np.full(g.shape, 205, np.uint8)       # unknown
         img[g == 0] = 254                           # free
         img[g >= 65] = 0                            # occupied
-        write_pgm(os.path.join(out, 'grid.pgm'), img[::-1])   # 이미지 위쪽 = +y
+        img = img[::-1].copy()                      # 이미지 위쪽 = +y
         o = m.info.origin.position
+        freed = despeckle_grid(img, m.info.resolution, (o.x, o.y), *evidence) if evidence is not None else 0
+        write_pgm(os.path.join(out, 'grid.pgm'), img)
         q = m.info.origin.orientation
         yaw = float(np.arctan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z)))
         with open(os.path.join(out, 'grid.yaml'), 'w') as f:
             f.write(f'image: grid.pgm\nmode: trinary\nresolution: {m.info.resolution}\n'
                     f'origin: [{o.x}, {o.y}, {yaw}]\nnegate: 0\noccupied_thresh: 0.65\nfree_thresh: 0.25\n')
-        return True, f'{m.info.width}x{m.info.height} @ {m.info.resolution:.2f} m, 장애물 {(g >= 65).sum()} 셀'
+        return True, (f'{m.info.width}x{m.info.height} @ {m.info.resolution:.2f} m, 장애물 {int((img == 0).sum())} 셀'
+                      + (f' (잡티 {freed} 셀 지움)' if freed else ''))
 
     def save_elevation(self, out):
         m = self.msgs.get('elevation')
@@ -139,6 +143,15 @@ def rebuild_layers(out, keep_dynamic):
         tail = (p.stderr or p.stdout).strip().splitlines()
         return False, '; '.join(lines) or (tail[-1] if tail else '실패')
     return True, '; '.join(lines)
+
+
+def map_evidence(out):
+    """저장된 map.pcd + 키프레임 -> (점, 점별 바닥 높이) 또는 None"""
+    try:
+        P, _ = read_pcd(os.path.join(out, 'map.pcd'))
+        return P, local_floor(P, np.array([t for _, t, _ in load_keyframes(out)]))
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def elevation_from_map(out):
@@ -199,7 +212,7 @@ def main():
         else:
             results['octomap (octomap.bt)'] = save_octomap(out)
             node.wait_msgs(['grid', 'elevation'], timeout=3.0)
-            results['2D (grid.pgm/yaml)'] = node.save_grid(out)
+            results['2D (grid.pgm/yaml)'] = node.save_grid(out, map_evidence(out))
             if results['pgo (map.pcd)'][0] and os.path.exists(os.path.join(out, 'poses.txt')):
                 results['elevation (elevation.npz/pgm/png)'] = elevation_from_map(out)
             else:

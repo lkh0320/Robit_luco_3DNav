@@ -28,6 +28,8 @@ setup(
             'remove_dynamic = luco3dnav_mapping.remove_dynamic:main',
             'rebuild_layers = luco3dnav_mapping.rebuild_layers:main',
             'dynamic_filter = luco3dnav_mapping.dynamic_filter:main',
+            'set_nav_map = luco3dnav_mapping.set_nav_map:main',
+            'global_localize = luco3dnav_mapping.global_localize:main',
         ],
     },
 )
