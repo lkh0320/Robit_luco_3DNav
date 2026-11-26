@@ -1,7 +1,8 @@
 #!/bin/bash
 # bag 하나로 지도 폴더 만들기 (RViz 없이, 끝나면 자동 종료)
 #
-#   bag_to_map.sh <bag 폴더> [지도 이름]      이름 기본값 = bag 폴더 이름
+#   bag_to_map.sh <bag 폴더> [지도 이름] [재생 길이(초)]   이름 기본값 = bag 폴더 이름
+#   재생 길이: bag 앞에서부터 이만큼만 씀 (끝에 턱에 걸리는 등 망가진 부분 빼기)
 #
 # 순서: SLAM(FAST-LIO2 + PGO) + 레이어를 bag으로 돌림 -> save_maps (PGO 지도 + 사람 등 제거)
 #       -> rebuild_layers (octomap/2D/elevation을 PGO 최종 자세 + 정적 점으로 다시 만듦)
@@ -10,9 +11,10 @@
 # bag 길이만큼 걸림 (실시간 재생).
 set -eo pipefail
 
-[ $# -ge 1 ] || { sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+[ $# -ge 1 ] || { sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
 BAG=$(realpath "$1")
 NAME=${2:-$(basename "$BAG")}
+DUR=${3:-}
 [ -f "$BAG/metadata.yaml" ] || { echo "bag 폴더가 아님: $BAG"; exit 1; }
 
 HERE=$(cd "$(dirname "$(realpath "$0")")" && pwd)
@@ -33,7 +35,7 @@ cleanup() {
 }
 trap cleanup EXIT
 sleep 6
-echo "[bag_to_map] 재생 중 ($(grep -m1 -A1 'duration' "$BAG/metadata.yaml" | grep -o '[0-9]*' | tail -1 | awk '{printf "%.0f", $1/1e9}') s)..."
-ros2 bag play "$BAG" --clock --topics /imu/data /velodyne_points > "$LOG/play.log" 2>&1
+echo "[bag_to_map] 재생 중 ${DUR:+(앞 $DUR s 만) }($(grep -m1 -A1 'duration' "$BAG/metadata.yaml" | grep -o '[0-9]*' | tail -1 | awk '{printf "%.0f", $1/1e9}') s)..."
+ros2 bag play "$BAG" --clock --topics /imu/data /velodyne_points ${DUR:+--playback-duration $DUR} > "$LOG/play.log" 2>&1
 sleep 3
 ros2 run luco3dnav_mapping save_maps "$NAME" --rebuild-layers
