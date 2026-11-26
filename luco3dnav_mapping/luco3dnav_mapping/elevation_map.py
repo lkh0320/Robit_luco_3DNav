@@ -177,3 +177,39 @@ def despeckle_grid(img, res, origin, P, floor, max_cells=12, min_points=20, band
     m = drop[lab]
     img[m] = 254
     return int(m.sum())
+
+
+def point_obstacles(shape, res, origin, P, floor, step=0.06, top=0.8, min_frac=0.1):
+    """판자 단·문턱처럼 octomap 기준 높이(occupancy_min_z)보다 낮은 장애물 칸. grid cells (image layout, row 0 = top) the robot cannot drive over, judged from the points.
+
+    OctoMap's projection only counts voxels above a fixed height (occupancy_min_z), so low platforms, boards and door
+    thresholds below it look free. Here a cell is an obstacle when at least max(3, min_frac of the cell's points) lie
+    between floor + `step` and floor + `top` (same support rule as the elevation map, so floor noise does not count).
+    """
+    h, w = shape
+    rel = P[:, 2] - floor
+    col = np.floor((P[:, 0] - origin[0]) / res).astype(np.int64)
+    row = h - 1 - np.floor((P[:, 1] - origin[1]) / res).astype(np.int64)
+    ok = (col >= 0) & (col < w) & (row >= 0) & (row < h) & (rel > -0.3) & (rel < top)
+    cell = row[ok] * w + col[ok]
+    cnt = np.bincount(cell, minlength=h * w)
+    up = np.bincount(cell, weights=(rel[ok] > step).astype(float), minlength=h * w)
+    return (up >= np.maximum(3, min_frac * cnt)).reshape(shape)
+
+
+
+def add_low_obstacles(img, res, origin, P, floor, step=0.06, top=0.8):
+    """grid 이미지(row 0 = 위, 0 = 장애물)에 점 기준 낮은 장애물 추가. 기존 장애물과 안 닿는 3칸 이하 덩어리는 제외
+    -> 추가한 칸 수"""
+    from scipy import ndimage
+    add = point_obstacles(img.shape, res, origin, P, floor, step, top) & (img != 0)
+    lab, n = ndimage.label(add | (img == 0), np.ones((3, 3)))
+    if n:
+        idx = np.arange(1, n + 1)
+        size = ndimage.sum(np.ones(img.shape), lab, idx)
+        had_occ = ndimage.maximum(img == 0, lab, idx)
+        tiny = np.zeros(n + 1, bool)
+        tiny[1:] = (size <= 3) & ~had_occ.astype(bool)
+        add &= ~tiny[lab]
+    img[add] = 0
+    return int(add.sum())

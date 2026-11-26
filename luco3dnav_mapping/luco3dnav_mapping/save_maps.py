@@ -39,7 +39,7 @@ from nav_msgs.msg import OccupancyGrid
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
-from luco3dnav_mapping.elevation_map import (despeckle_grid, elevation_from_points, elevation_params,
+from luco3dnav_mapping.elevation_map import (add_low_obstacles, despeckle_grid, elevation_from_points, elevation_params,
                                            local_floor, save_elevation_layers, write_pgm)
 from luco3dnav_mapping.remove_dynamic import load_keyframes, read_pcd
 
@@ -92,6 +92,7 @@ class Saver(Node):
         img = img[::-1].copy()                      # 이미지 위쪽 = +y
         o = m.info.origin.position
         freed = despeckle_grid(img, m.info.resolution, (o.x, o.y), *evidence) if evidence is not None else 0
+        added = add_low_obstacles(img, m.info.resolution, (o.x, o.y), *evidence) if evidence is not None else 0
         write_pgm(os.path.join(out, 'grid.pgm'), img)
         q = m.info.origin.orientation
         yaw = float(np.arctan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z)))
@@ -99,7 +100,8 @@ class Saver(Node):
             f.write(f'image: grid.pgm\nmode: trinary\nresolution: {m.info.resolution}\n'
                     f'origin: [{o.x}, {o.y}, {yaw}]\nnegate: 0\noccupied_thresh: 0.65\nfree_thresh: 0.25\n')
         return True, (f'{m.info.width}x{m.info.height} @ {m.info.resolution:.2f} m, 장애물 {int((img == 0).sum())} 셀'
-                      + (f' (잡티 {freed} 셀 지움)' if freed else ''))
+                      + (f' (잡티 {freed} 셀 지움)' if freed else '')
+                      + (f' (낮은 장애물 {added} 셀 추가)' if added else ''))
 
     def save_elevation(self, out):
         m = self.msgs.get('elevation')
