@@ -40,6 +40,7 @@ colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 | 저장된 지도의 레이어 다시 만들기 | `ros2 run luco3dnav_mapping rebuild_layers maps/pcd/<이름>` |
 | 기준 지도 정하기 (위치 추정·경로 계획용) | `ros2 run luco3dnav_mapping set_nav_map maps/pcd/<이름>` → `maps/nav/` |
 | 저장된 지도에서 위치 추정 시작 | `ros2 launch luco3dnav_bringup localization.launch.py` (로봇: `wheel_odom:=true use_description:=false use_static_tf:=false use_rviz:=false`) |
+| 점군 → 2D 지도 GUI, GIMP로 2D 고치기 (개발 PC 전용) | 별도 레포 `pcd2nav2map`: `pcd2nav2map maps/nav`, `pcd2nav2map-layers export/import` |
 | 지도 공유 | `$S/map_release.sh upload <이름> "설명"` / `list` / `download <이름>` |
 | 지도 보기 | `pcl_viewer maps/pcd/<이름>/map.pcd` (뷰어에서 `5` = 높이 색) |
 | 두 PC 원격 통신 설정 | `source $S/luco_net.sh` (개발 PC는 alias `luco_net`) |
