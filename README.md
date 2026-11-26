@@ -20,6 +20,7 @@ colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 ```
 
 - 로봇 모델/TF는 별도 레포 `luco2_description`을 같은 `src/`에 둔다. 없으면 `use_description:=false`(정적 TF로 대신).
+  모델 확인: `ros2 launch luco2_description display.launch.py` (2026-11-27부터 뎁스 카메라 2대 + 매니퓰레이터 포함, 시각/충돌 모델 같이 표시)
 - 라이다: PC 유선 랜 `192.168.1.100/24`, 라이다 `192.168.1.201`.
 - (선택) IMU 고정 이름 `/dev/ebimu`: `sudo cp luco3dnav_sensors/udev/99-ebimu.rules /etc/udev/rules.d/ && sudo udevadm control --reload && sudo udevadm trigger`
 

@@ -59,7 +59,8 @@ def generate_launch_description():
              parameters=[sim_time], condition=static_tf_on),
     ]
 
-    # 로봇 모델: luco2_description URDF -> robot_description, TF(base_link->velodyne/imu_link/바퀴)
+    # 로봇 모델: luco2_description URDF -> robot_description
+    #   TF: base_link -> velodyne/imu_link/바퀴/카메라 마스트(head_camera_link)/매니퓰레이터(wrist_camera_link)
     robot_description = ParameterValue(
         Command(['xacro ', PathJoinSubstitution(
             [FindPackageShare('luco2_description'), 'urdf', 'luco2.xacro'])]),
@@ -68,7 +69,8 @@ def generate_launch_description():
         Node(package='robot_state_publisher', executable='robot_state_publisher',
              name='robot_state_publisher', parameters=[{'robot_description': robot_description}, sim_time],
              condition=IfCondition(use_description)),
-        # 바퀴 continuous 조인트 TF용 (휠 엔코더 없으니 0으로 고정)
+        # 움직이는 조인트 TF용: 바퀴·카메라 팬·팔·그리퍼를 전부 0으로 고정
+        #   (0 = CAD 자세 = 팔 접힘, 카메라 정면 뒤쪽). 실제 팔 각도가 필요하면 팔 드라이버의 /joint_states를 쓸 것
         Node(package='joint_state_publisher', executable='joint_state_publisher',
              name='joint_state_publisher', parameters=[sim_time], condition=IfCondition(use_description)),
     ]
