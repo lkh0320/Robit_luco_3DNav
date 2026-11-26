@@ -18,6 +18,9 @@ SLAM(PGO)이 돌고 있는 PC에서 실행해야 한다 (PGO가 자기 디스크
   grid.pgm, grid.yaml            2D occupancy (Nav2 map_server 형식)
   elevation.npz                  2.5D elevation 원본 (elevation/min/count float32, NaN = 없음)
   elevation.pgm, elevation.yaml  elevation 미리보기 이미지 (밝을수록 높음, 0 = 없음)
+  elevation.png                  컬러 elevation (파랑 = 낮음 .. 빨강 = 높음, 투명 = 없음)
+  elevation은 패치가 있으면 저장된 정적 map.pcd에서 바로 계산 (바닥 = 중앙값, 장애물 = 최고점 -> 바닥 얼룩 없음),
+  --no-patches 면 실시간 elevation_mapper 결과를 그대로 저장.
   info.yaml                      저장 시각, 각 항목 성공 여부
 """
 import argparse
@@ -36,6 +39,10 @@ from nav_msgs.msg import OccupancyGrid
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
+from luco3dnav_mapping.elevation_map import (elevation_from_points, elevation_params, save_elevation_layers,
+                                           write_pgm)
+from luco3dnav_mapping.remove_dynamic import load_keyframes, read_pcd
+
 
 def default_map_root():
     """install/<pkg>/share/<pkg> -> 워크스페이스 루트. 개발 PC는 <ws>/maps, 로봇 PC는 clone 안 maps."""
@@ -44,12 +51,6 @@ def default_map_root():
         return os.path.join(ws, 'maps', 'pcd')
     return os.path.join(ws, 'src', 'luco3dnav', 'maps', 'pcd')
 
-
-def write_pgm(path, img):
-    h, w = img.shape
-    with open(path, 'wb') as f:
-        f.write(f'P5\n{w} {h}\n255\n'.encode())
-        f.write(np.ascontiguousarray(img, dtype=np.uint8).tobytes())
 
 
 class Saver(Node):
@@ -111,24 +112,7 @@ class Saver(Node):
         to_img = {k: v[::-1, :].T for k, v in layers.items()}
         x0 = px - m.info.length_x / 2
         y0 = py - m.info.length_y / 2
-        np.savez_compressed(os.path.join(out, 'elevation.npz'), resolution=res, origin=np.array([x0, y0]),
-                            frame=m.header.frame_id,
-                            note='배열[row, col]: row 0 = 위쪽(+y 끝), col 0 = x0. 셀 중심 = '
-                                 '(x0 + (col+0.5)*res, y0 + (rows-1-row+0.5)*res)',
-                            **to_img)
-        e = to_img['elevation']
-        valid = ~np.isnan(e)
-        if not valid.any():
-            return False, 'elevation 비어 있음'
-        zmin, zmax = float(np.nanmin(e)), float(np.nanmax(e))
-        img = np.zeros(e.shape, np.uint8)
-        img[valid] = (1 + (e[valid] - zmin) / max(zmax - zmin, 1e-6) * 254).astype(np.uint8)
-        write_pgm(os.path.join(out, 'elevation.pgm'), img)
-        with open(os.path.join(out, 'elevation.yaml'), 'w') as f:
-            f.write(f'image: elevation.pgm   # 1..255 = z_min..z_max, 0 = 데이터 없음 (원본은 elevation.npz)\n'
-                    f'resolution: {res}\norigin: [{x0}, {y0}, 0.0]\nz_min: {zmin:.3f}\nz_max: {zmax:.3f}\n'
-                    f'frame: {m.header.frame_id}\n')
-        return True, f'유효 셀 {int(valid.sum())}, z {zmin:.2f} ~ {zmax:.2f} m'
+        return save_elevation_layers(to_img, res, x0, y0, m.header.frame_id, out)
 
 
 def remove_dynamic(out):
@@ -155,6 +139,16 @@ def rebuild_layers(out, keep_dynamic):
         tail = (p.stderr or p.stdout).strip().splitlines()
         return False, '; '.join(lines) or (tail[-1] if tail else '실패')
     return True, '; '.join(lines)
+
+
+def elevation_from_map(out):
+    """저장된 (정적) map.pcd + 키프레임 위치로 elevation 계산 (바닥 = 중앙값, 장애물 = 최고점)"""
+    try:
+        P, _ = read_pcd(os.path.join(out, 'map.pcd'))
+        kf_xyz = np.array([t for _, t, _ in load_keyframes(out)])
+        return elevation_from_points(P, kf_xyz, elevation_params(get_package_share_directory('luco3dnav_mapping')), out)
+    except Exception as e:  # noqa: BLE001
+        return False, f'elevation 계산 실패: {e}'
 
 
 def save_octomap(out):
@@ -206,7 +200,10 @@ def main():
             results['octomap (octomap.bt)'] = save_octomap(out)
             node.wait_msgs(['grid', 'elevation'], timeout=3.0)
             results['2D (grid.pgm/yaml)'] = node.save_grid(out)
-            results['elevation (elevation.npz/pgm)'] = node.save_elevation(out)
+            if results['pgo (map.pcd)'][0] and os.path.exists(os.path.join(out, 'poses.txt')):
+                results['elevation (elevation.npz/pgm/png)'] = elevation_from_map(out)
+            else:
+                results['elevation (elevation.npz/pgm/png)'] = node.save_elevation(out)
     finally:
         node.destroy_node()
         rclpy.try_shutdown()

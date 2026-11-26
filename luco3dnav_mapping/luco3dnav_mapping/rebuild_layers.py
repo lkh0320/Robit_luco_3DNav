@@ -11,8 +11,9 @@
   - 입력은 키프레임(0.5 m / 10도 간격)만이라 실시간(모든 스캔)보다 관측 수는 적음.
 
 필요: patches/ + poses.txt (save_maps 기본값으로 저장한 폴더)
-결과: octomap.bt, grid.pgm/yaml, elevation.npz/pgm/yaml 덮어씀 (기존 파일은 layers_old/ 로 옮김)
-      octomap_server / elevation_mapper 를 자체 ROS 도메인(기본 87, localhost)에서 띄우므로
+결과: octomap.bt, grid.pgm/yaml, elevation.npz/pgm/png/yaml 덮어씀 (기존 파일은 layers_old/ 로 옮김)
+      elevation은 정적 점에서 바로 계산 (바닥 = 중앙값, 장애물 = 최고점 -> 평평한 바닥에 얼룩 없음)
+      octomap_server 를 자체 ROS 도메인(기본 87, localhost)에서 띄우므로
       로봇에서 SLAM이 돌고 있어도 섞이지 않음.
 """
 import argparse
@@ -28,7 +29,7 @@ from scipy.spatial.transform import Rotation as Rot
 
 from luco3dnav_mapping.remove_dynamic import add_args, classify
 
-OLD_FILES = ['octomap.bt', 'grid.pgm', 'grid.yaml', 'elevation.npz', 'elevation.pgm', 'elevation.yaml']
+OLD_FILES = ['octomap.bt', 'grid.pgm', 'grid.yaml', 'elevation.npz', 'elevation.pgm', 'elevation.yaml', 'elevation.png']
 
 
 def main():
@@ -59,6 +60,7 @@ def main():
     from std_msgs.msg import Header
     from tf2_ros import TransformBroadcaster
     from ament_index_python.packages import get_package_share_directory
+    from luco3dnav_mapping.elevation_map import elevation_from_points, elevation_params
     from luco3dnav_mapping.save_maps import Saver, save_octomap
 
     share = get_package_share_directory('luco3dnav_mapping')
@@ -66,11 +68,6 @@ def main():
         subprocess.Popen(['ros2', 'run', 'octomap_server', 'octomap_server_node', '--ros-args',
                           '-r', '__node:=octomap_server', '--params-file', os.path.join(share, 'config', 'octomap.yaml'),
                           '-r', 'cloud_in:=/rebuild/cloud', '-p', 'base_frame_id:=base_footprint'],
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True),
-        subprocess.Popen(['ros2', 'run', 'luco3dnav_mapping', 'elevation_mapper', '--ros-args',
-                          '--params-file', os.path.join(share, 'config', 'elevation.yaml'),
-                          '-p', 'cloud_topic:=/rebuild/cloud', '-p', 'tf_wait:=5.0',
-                          '-p', 'source:=cloud'],   # 넣는 점이 이미 정적 점이라 누적 방식이 정확
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True),
     ]
 
@@ -93,10 +90,10 @@ def main():
     try:
         # 하위 노드가 구독할 때까지 대기
         end = time.time() + 20
-        while time.time() < end and pub.get_subscription_count() < 2:
+        while time.time() < end and pub.get_subscription_count() < 1:
             rclpy.spin_once(node, timeout_sec=0.2)
-        if pub.get_subscription_count() < 2:
-            print('octomap_server / elevation_mapper 가 안 뜸', file=sys.stderr)
+        if pub.get_subscription_count() < 1:
+            print('octomap_server 가 안 뜸', file=sys.stderr)
             return 1
         time.sleep(1.0)
 
@@ -123,7 +120,7 @@ def main():
                 rclpy.spin_once(node, timeout_sec=0.01)
             if (k + 1) % 50 == 0:
                 print(f'  {k + 1}/{len(kfs)}')
-        # 마지막 처리 + elevation 발행 주기(2 Hz) 대기
+        # octomap 마지막 처리 대기
         end = time.time() + 4
         while time.time() < end:
             rclpy.spin_once(node, timeout_sec=0.1)
@@ -138,11 +135,12 @@ def main():
                 os.remove(src)
 
         saver = Saver()
-        saver.wait_msgs(['grid', 'elevation'], timeout=10.0)
+        saver.wait_msgs(['grid'], timeout=10.0)
         results = {
             'octomap (octomap.bt)': save_octomap(d),
             '2D (grid.pgm/yaml)': saver.save_grid(d),
-            'elevation (elevation.npz/pgm)': saver.save_elevation(d),
+            'elevation (elevation.npz/pgm/png)': elevation_from_points(
+                P[~dyn], np.array([t for _, t, _ in kfs]), elevation_params(share), d),
         }
         saver.destroy_node()
         for k, (ok, m) in results.items():
