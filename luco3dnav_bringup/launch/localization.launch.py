@@ -43,7 +43,14 @@ def nodes(context):
              parameters=[{'map_dir': map_dir}, sim_time], output='screen'),
     ]
     grid = os.path.join(map_dir, 'grid.yaml')
-    if os.path.isfile(grid):
+    try:
+        get_package_share_directory('nav2_map_server')
+        have_nav2 = True
+    except Exception:  # noqa: BLE001  (PackageNotFoundError)
+        have_nav2 = False
+        print('[localization] nav2_map_server 없음 -> /map 발행 생략 '
+              '(sudo apt install ros-jazzy-nav2-map-server ros-jazzy-nav2-lifecycle-manager)')
+    if os.path.isfile(grid) and have_nav2:
         out += [
             Node(package='nav2_map_server', executable='map_server', name='map_server',
                  parameters=[{'yaml_filename': grid, 'frame_id': 'map'}, sim_time], output='screen',
