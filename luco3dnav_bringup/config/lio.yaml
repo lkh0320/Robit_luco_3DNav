@@ -1,6 +1,6 @@
 imu_topic: /imu/data
 lidar_topic: /velodyne_points
-# 로봇 기준 프레임 = luco2_description 루트(base_footprint, 바닥면)
+# 로봇 기준 프레임 = luco_description 루트(base_footprint, 바닥면)
 #   base_footprint -> base_link 는 URDF 고정 조인트(z +0.0613)
 body_frame: base_footprint
 # TF 구조:  map --(PGO 루프 보정)--> lio_world --(FAST-LIO)--> [odom --(휠 오도메트리)-->] base_footprint
@@ -48,7 +48,7 @@ esti_il: false
 
 # body_frame(base_footprint) -> IMU 외부 파라미터: p_body = r_bi * p_imu + t_bi
 # t_bi = base_footprint 기준 IMU 위치 = base_link 기준 실측 (101.0, 2.25, 254.8) mm + base_link 높이 61.3 mm
-#   (luco2_description: base_footprint -> base_link z = wheel_radius - wheel_z = 0.1143 - 0.053)
+#   (luco_description: base_footprint -> base_link z = wheel_radius - wheel_z = 0.1143 - 0.053)
 # r_bi = IMU 축 방향: IMU가 base_link 대비 z축으로 -90도 돌아가 장착됨
 #   (IMU x = 로봇 오른쪽(-y), IMU y = 로봇 앞(+x)). bags/luco_1125_1934 기울임 테스트로 확인:
 #   라이다-IMU 회전 정합 결과 yaw -94.7도, 라이다 축 = 로봇 축으로 판단 (2026-11-25)
@@ -64,7 +64,7 @@ t_bi: [0.101, 0.00225, 0.3161]
 #   base 기준 차이: velodyne (125.45, 0, 306.4) - imu_link (101.0, 2.25, 254.8) = (24.45, -2.25, 51.6) mm
 #   -> IMU 좌표계: (2.25, 24.45, 51.6) mm
 #   (직접 측정값 x +23.25, z +51.4 와는 1.2 mm, 0.2 mm 차이 -> URDF와 맞추려고 base 기준 차이 사용)
-# mapping.launch.py 정적 TF / luco2_description URDF와 맞출 것
+# mapping.launch.py 정적 TF / luco_description URDF와 맞출 것
 r_il: [0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
 t_il: [0.00225, 0.02445, 0.0516]
 

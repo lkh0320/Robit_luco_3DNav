@@ -1,6 +1,6 @@
 """Mapping: sensors + (static TF) + FAST-LIO2 + PGO + RViz.
 
-  ros2 launch luco3dnav_bringup mapping.launch.py                          # 로봇 모델(luco2_description) 포함
+  ros2 launch luco3dnav_bringup mapping.launch.py                          # 로봇 모델(luco_description) 포함
   ros2 launch luco3dnav_bringup mapping.launch.py use_description:=false   # 모델 없이 정적 TF만
 
   로봇(luco_bringup 실행 중): mapping.launch.py wheel_odom:=true use_description:=false use_static_tf:=false
@@ -39,13 +39,13 @@ def generate_launch_description():
     # bag 데이터 시각과 노드 시각을 맞추기 위해 /clock 사용 (bool 파라미터로 전달)
     sim_time = {'use_sim_time': ParameterValue(LaunchConfiguration('use_sim_time'), value_type=bool)}
 
-    # luco2_description URDF와 같은 값 (실측 2026-11-25, base_link 기준)
+    # luco_description URDF와 같은 값 (실측 2026-11-25, base_link 기준)
     #   lio.yaml t_bi는 base_footprint 기준이라 아래 base_link 기준 값보다 z가 0.0613 큼
     # use_description:=true(기본)면 robot_state_publisher가 같은 TF를 주므로 정적 TF는 자동으로 꺼짐
     static_tf_on = IfCondition(PythonExpression(
         ["'", use_static_tf, "' == 'true' and '", use_description, "' != 'true'"]))
     static_tf = [
-        # base_footprint(바닥) -> base_link: luco2_description base_joint (z = 0.1143 - 0.053)
+        # base_footprint(바닥) -> base_link: luco_description base_joint (z = 0.1143 - 0.053)
         Node(package='tf2_ros', executable='static_transform_publisher', name='footprint_to_base',
              arguments=['--z', '0.0613', '--frame-id', 'base_footprint', '--child-frame-id', 'base_link'],
              parameters=[sim_time], condition=static_tf_on),
@@ -59,11 +59,11 @@ def generate_launch_description():
              parameters=[sim_time], condition=static_tf_on),
     ]
 
-    # 로봇 모델: luco2_description URDF -> robot_description
+    # 로봇 모델: luco_description URDF -> robot_description
     #   TF: base_link -> velodyne/imu_link/바퀴/카메라 마스트(head_camera_link)/매니퓰레이터(wrist_camera_link)
     robot_description = ParameterValue(
         Command(['xacro ', PathJoinSubstitution(
-            [FindPackageShare('luco2_description'), 'urdf', 'luco2.xacro'])]),
+            [FindPackageShare('luco_description'), 'urdf', 'luco_description.urdf.xacro'])]),
         value_type=str)
     description = [
         Node(package='robot_state_publisher', executable='robot_state_publisher',
@@ -85,7 +85,7 @@ def generate_launch_description():
                               description='true: luco_bringup 휠 오도메트리(odom->base_footprint)와 연동, '
                                           'FAST-LIO는 lio_world->odom 발행'),
         DeclareLaunchArgument('use_description', default_value='true',
-                              description='luco2_description 로봇 모델 + TF 사용'),
+                              description='luco_description 로봇 모델 + TF 사용'),
         DeclareLaunchArgument('use_static_tf', default_value='true',
                               description='use_description:=false일 때 정적 TF 발행'),
         DeclareLaunchArgument('use_rviz', default_value='true'),

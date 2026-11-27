@@ -19,8 +19,8 @@ sudo usermod -aG dialout $USER                  # IMU 시리얼 권한, 로그�
 colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 ```
 
-- 로봇 모델/TF는 별도 레포 `luco2_description`을 같은 `src/`에 둔다. 없으면 `use_description:=false`(정적 TF로 대신).
-  모델 확인: `ros2 launch luco2_description display.launch.py` (2026-11-27부터 뎁스 카메라 2대 + 매니퓰레이터 포함, 시각/충돌 모델 같이 표시)
+- 로봇 모델/TF는 별도 레포 `luco_description`을 같은 `src/`에 둔다. 없으면 `use_description:=false`(정적 TF로 대신).
+  모델 확인: `ros2 launch luco_description display.launch.py` (2026-11-27부터 뎁스 카메라 2대 + 매니퓰레이터 포함, 시각/충돌 모델 같이 표시)
 - 라이다: PC 유선 랜 `192.168.1.100/24`, 라이다 `192.168.1.201`.
 - (선택) IMU 고정 이름 `/dev/ebimu`: `sudo cp luco3dnav_sensors/udev/99-ebimu.rules /etc/udev/rules.d/ && sudo udevadm control --reload && sudo udevadm trigger`
 
@@ -92,7 +92,7 @@ ros2 launch luco3dnav_bringup view.launch.py
 - **TF**: `map -(PGO)-> lio_world -(FAST-LIO)-> odom -(휠 오도메트리)-> base_footprint -> base_link -> velodyne / imu_link`.
   `wheel_odom:=true`면 FAST-LIO가 `lio_world -> odom`을 발행해서 휠 odom TF와 안 겹침. 휠 odom이 없으면(bag/핸드헬드) `lio_world -> base_footprint` 직접.
 - **센서 외부 파라미터**(base_link 기준 실측 mm): velodyne (125.45, 0, 306.4), IMU (101.0, 2.25, 254.8), IMU는 z축 -90° 장착.
-  `lio.yaml`의 `r_bi/t_bi/r_il/t_il`, `luco2_description` URDF, `mapping.launch.py` 정적 TF를 항상 같이 맞출 것.
+  `lio.yaml`의 `r_bi/t_bi/r_il/t_il`, `luco_description` URDF, `mapping.launch.py` 정적 TF를 항상 같이 맞출 것.
 - **bag**: 센서 토픽(`/imu/data /velodyne_points`, 로봇이면 `+ /diff_drive_controller/odom`)만 녹화. TF는 재생 때 다시 계산되므로 설정을 바꿔도 재사용 가능. 재생은 `--clock` 필수.
 
 ## FASTLIO2_ROS2 변경점
